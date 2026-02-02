@@ -6,9 +6,11 @@
     <title>Patient Dashboard - Medical Coding Portal</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
+
 </head>
 <body>
     {% include "header.html" %}
+    <div id="banner" class="banner"></div>
 
     <!-- Breadcrumb -->
     <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
@@ -34,6 +36,29 @@
         window.history.replaceState({}, document.title, window.location.pathname);
     </script>
     {% endif %}
+    
+<div class="list-actions">
+<div class="header-buttons">
+                <button class="btn-primary" onclick="location.href='{{ url_for('add_patient') }}'">
+                    <i class="fa-solid fa-user-plus"></i> Add Patient
+                </button>
+            </div>
+            <!-- Sort Controls -->
+<div class="sort-bar">
+  <label>Sort by:</label>
+
+<select id="sortBy" onchange="location = this.value">
+  <option value="">-- Select --</option>
+
+<option value="{{ url_for('dashboard', sort='name_asc') }}" {% if request.args.get('sort')=='name_asc' %}selected{% endif %}>Name (A → Z)</option>
+<option value="{{ url_for('dashboard', sort='name_desc') }}" {% if request.args.get('sort')=='name_desc' %}selected{% endif %}>Name (Z → A)</option>
+<option value="{{ url_for('dashboard', sort='age_young') }}" {% if request.args.get('sort')=='age_young' %}selected{% endif %}>Age (Younger first)</option>
+<option value="{{ url_for('dashboard', sort='age_old') }}" {% if request.args.get('sort')=='age_old' %}selected{% endif %}>Age (Older first)</option>
+<option value="{{ url_for('dashboard', sort='icd_date') }}" {% if request.args.get('sort')=='icd_date' %}selected{% endif %}>ICD Date (Earliest first)</option>
+
+</select>
+</div>
+</div>
 
     <!-- patient list -->
     <main class="main-content">
@@ -44,16 +69,10 @@
                 <div class="title-bar-line-fade"></div>
             </div>
 
-            <div class="header-buttons">
-                <button class="btn-primary" onclick="location.href='{{ url_for('add_patient') }}'">
-                    <i class="fa-solid fa-user-plus"></i> Add Patient
-                </button>
-            </div>
-
             {% if patients %}
             <div class="patient-grid">
                 {% for p in patients %}
-                <div class="patient-card">
+                <div class="patient-card" id="patient-{{ p.ID }}">
                     <div class="card-corner"></div>
                     <div class="card-content">
                         <h3 class="patient-name">{{ p.FullName }}</h3>
@@ -65,6 +84,9 @@
                             onclick="location.href='{{ url_for('add_note') }}?pid={{ p.ID }}'">
                             <i class="fa-solid fa-file-medical"></i> Add Medical Notes
                         </button>
+                        <button type="button" class="btn-danger delete-btn" data-id="{{ p.ID }}">
+                            <i class="fa-solid fa-trash"></i> Delete Patient
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
@@ -75,9 +97,121 @@
         </div>
         
     </main>
+    <!-- Custom Confirm Modal -->
+<div id="confirmModal" class="confirm-modal">
+  <div class="confirm-box">
+    <h3 class="confirm-title">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      Confirm deletion
+    </h3>
+
+    <p id="confirmMessage" class="confirm-message"></p>
+
+    <div class="confirm-actions">
+      <button type="button" id="confirmCancel" class="btn-secondary">Cancel</button>
+      <button type="button" id="confirmOk" class="btn-danger">Delete</button>
+    </div>
+  </div>
+</div>
+
 
     <footer>
         <p>&copy; 2025 OuwN. All Rights Reserved.</p>
     </footer>
+    <script>
+/* ========= Banner (your existing CSS) ========= */
+function showBanner(message, type = "success") {
+  const banner = document.getElementById("banner");
+  if (!banner) return;
+
+  const icon =
+    type === "success"
+      ? '<i class="fa-solid fa-circle-check"></i>'
+      : '<i class="fa-solid fa-circle-exclamation"></i>';
+
+  banner.innerHTML = `${icon} <span>${message}</span>`;
+  banner.className = `banner show ${type}`;
+
+  setTimeout(() => {
+    banner.classList.remove("show");
+  }, 3500);
+}
+
+/* ========= Custom Confirm (stylable) ========= */
+function customConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirmModal");
+    const msg = document.getElementById("confirmMessage");
+    const okBtn = document.getElementById("confirmOk");
+    const cancelBtn = document.getElementById("confirmCancel");
+
+    msg.textContent = message;
+    modal.classList.add("show");
+
+    const cleanup = () => {
+      modal.classList.remove("show");
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      modal.onclick = null;
+      document.onkeydown = null;
+    };
+
+    okBtn.onclick = () => { cleanup(); resolve(true); };
+    cancelBtn.onclick = () => { cleanup(); resolve(false); };
+
+    // click outside closes (cancel)
+    modal.onclick = (e) => {
+      if (e.target === modal) { cleanup(); resolve(false); }
+    };
+
+    // ESC closes (cancel)
+    document.onkeydown = (e) => {
+      if (e.key === "Escape") { cleanup(); resolve(false); }
+    };
+  });
+}
+
+/* ========= Delete Patient ========= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".delete-btn");
+  if (!btn) return;
+
+  const pid = (btn.dataset.id || "").trim();
+  if (!pid) {
+    showBanner("Missing patient ID.", "error");
+    return;
+  }
+
+  const ok = await customConfirm("Delete this patient and all medical notes?");
+  if (!ok) return;
+
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/delete_patient/${encodeURIComponent(pid)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      showBanner(data.error || data.message || "Delete failed.", "error");
+      btn.disabled = false;
+      return;
+    }
+
+    const card = document.getElementById(`patient-${pid}`);
+    if (card) card.remove();
+
+    showBanner("Patient deleted successfully.", "success");
+
+  } catch (err) {
+    showBanner("Network error. Please try again.", "error");
+    btn.disabled = false;
+  }
+});
+
+</script>
 </body>
 </html>
