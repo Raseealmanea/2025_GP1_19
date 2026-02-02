@@ -653,7 +653,9 @@ footer {
 }
 
 .header-buttons {
-    margin-bottom: 1.5rem; 
+   
+     margin-top: 20px; 
+     margin-left: 10px;
 }
 
 .title-bar {
@@ -988,4 +990,149 @@ input, select, textarea, button {
 .btn-conform:hover {
     background: #7f5ea5;
     transform: scale(1.05);
+}
+.btn-danger{
+  background: #d9534f;
+  color: white;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.btn-danger:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Custom confirm modal (replaces browser confirm) */
+.confirm-modal{
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 99999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.confirm-modal.show{
+  display: flex;
+}
+
+.confirm-box{
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  padding: 18px 18px 16px;
+}
+
+.confirm-title{
+  margin: 0 0 10px;
+  font-size: 18px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.confirm-message{
+  margin: 0 0 16px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.confirm-actions{
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Make buttons look nice in row on small screens */
+@media (max-width: 420px){
+  .confirm-actions{
+    flex-direction: column;
+  }
+  .confirm-actions button{
+    width: 100%;
+  }
+}
+/* Confirm modal – make Cancel & Delete EXACT same size */
+/* Force confirm modal buttons to be identical */
+/* === Confirm modal buttons: SAME SIZE === */
+#confirmCancel,
+#confirmOk {
+  width: 150px !important;
+  height: 42px !important;
+
+  padding: 0 !important;            /* remove global padding */
+  margin: 0 !important;
+
+  display: flex !important;         /* center text */
+  align-items: center !important;
+  justify-content: center !important;
+
+  box-sizing: border-box !important;
+  border-radius: 10px !important;
+
+  flex: none !important;            /* stop flex stretch */
+}
+
+/* Keep spacing between them */
+.confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+.mic-btn{
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.mic-btn.recording{
+  background: #f44336;
+  color: #fff;
+}
+.list-actions {
+  display: flex;
+  justify-content: space-between; /* left & right */
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+   margin-right: 10px;
+   font-size: 14px;
+  color: #444;
+}
+/* Sort dropdown */
+.sort-bar select {
+  padding: 8px 36px 8px 12px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  background-color: #fff;
+  cursor: pointer;
+  appearance: none;            /* remove default arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  /* custom arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
 }
