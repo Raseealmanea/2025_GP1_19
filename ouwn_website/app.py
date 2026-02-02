@@ -17,6 +17,8 @@ import os, json, re, uuid
 # json → loading icd_data.json  
 # re → regex validation  
 # uuid → unique IDs for notes + ICD records
+import whisper
+
 
 
 # Create Flask App
@@ -25,6 +27,14 @@ def create_app():
     # secret key for sessions
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fallback-secret-key")
     app.config["PROPAGATE_EXCEPTIONS"] = True # Allow Flask to show detailed exceptions
+        # --- Whisper STT setup ---
+    app.config["WHISPER_MODEL"] = os.environ.get("WHISPER_MODEL", "base")
+    app.config["AUDIO_UPLOAD_DIR"] = os.path.join(app.root_path, "uploads_audio")
+    os.makedirs(app.config["AUDIO_UPLOAD_DIR"], exist_ok=True)
+
+    # Load whisper model once (fast for later requests)
+    app.whisper_model = whisper.load_model(app.config["WHISPER_MODEL"])
+
 
 
      # loading all blueprints (auth + reset)
@@ -54,16 +64,60 @@ def create_app():
     def dashboard():
         if 'user_id' not in session: # Block access if not logged in
             return redirect(url_for('Authentication.login'))
-
+        
+        sort = request.args.get("sort", "")
         patients = [] # Store all patients to display
         try:
             docs = db.collection("Patient").stream()
             for doc in docs:
                 data = doc.to_dict()
-                patients.append({
-                    "ID": doc.id,
-                    "FullName": data.get("FullName", "Unknown")
-                })
+                dob = data.get("DOB")
+                age = None
+                dob_date = None
+                 # --- CALCULATE AGE ---
+                if dob:
+                    try:
+                        dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                        age = date.today().year - dob_date.year
+                        if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
+                            age -= 1
+
+                        if age < 0 or age > 130:
+                            age = None
+                            dob_date = None
+                    except:
+                        age = None
+                        dob_date = None
+                    # --- GET EARLIEST ICD DATE ---
+                    icd_date = None
+                    try:
+                        notes = db.collection("Patient").document(doc.id).collection("MedicalNote").stream()
+                        for n in notes:
+                            icds = n.reference.collection("ICDcode").stream()
+                            for icd in icds:
+                                adjusted_at = icd.to_dict().get("AdjustedAt")
+                                if adjusted_at:
+                                    if isinstance(adjusted_at, datetime):
+                                         # normalize to naive UTC
+                                        dt = adjusted_at
+                                        if dt.tzinfo is not None:
+                                            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                                        icd_date = min(icd_date, adjusted_at) if icd_date else adjusted_at
+                                    else:
+                                        try:
+                                            dt = datetime.strptime(adjusted_at, "%Y-%m-%d %H:%M:%S")
+                                            icd_date = min(icd_date, dt) if icd_date else dt
+                                        except:
+                                            pass
+                    except Exception as e:
+                        icd_date = None
+                    patients.append({
+                        "ID": doc.id,
+                        "FullName": data.get("FullName", "Unknown"),
+                        "Age": age,
+                        "DOB_Date": dob_date,
+                        "ICDDate": icd_date
+                    })
         except Exception as e:
             flash(f"Error fetching patients: {e}", "danger")
 
@@ -73,6 +127,38 @@ def create_app():
             "patient_added": "Patient added successfully!",
             "added": "Patient added successfully!"
         }.get(msg_key, "")
+
+        # -------- SORTING LOGIC --------
+        if sort == "name_asc":
+            patients.sort(key=lambda x: x["FullName"].lower())
+
+        elif sort == "name_desc":
+            patients.sort(key=lambda x: x["FullName"].lower(), reverse=True)
+
+        elif sort == "age_young":
+            patients.sort(key=lambda x: (
+            x["Age"] is None,                         # unknown age last
+            x["Age"] if x["Age"] is not None else 0,  # younger age first
+            x["DOB_Date"] is None,                   # missing DOB last
+            -(x["DOB_Date"].toordinal() if x["DOB_Date"] else 0)     
+        ))
+
+        elif sort == "age_old":
+            patients.sort(key=lambda x: (
+            x["Age"] is None,
+            -(x["Age"] if x["Age"] is not None else 0),
+            x["DOB_Date"] is None,
+            (x["DOB_Date"].toordinal() if x["DOB_Date"] else 0)
+        ))
+
+        elif sort == "icd_date":
+            def normalize(dt):
+                if dt is None:
+                    return datetime.max
+                if dt.tzinfo is not None:
+                    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+                return dt
+            patients.sort(key=lambda x: normalize(x["ICDDate"]))
 
         return render_template("dashboard.html", patients=patients, msg_text=msg_text)
 
@@ -169,9 +255,6 @@ def create_app():
             note_text = data.get("note_text")
             icd_codes = data.get("icd_codes", [])
             
-            # check missing fields 
-            if not pid or not note_text or not icd_codes:
-                return jsonify({"status": "error", "message": "Missing fields"}), 400
 
             patient_ref = db.collection("Patient").document(pid)
 
@@ -398,7 +481,7 @@ def create_app():
 
         field = request.args.get("field", "")
         value = request.args.get("value", "").strip()
-        current_user = session['user_id'].strip().lower()
+        current_user = session['user_id'].strip()
 
         # 1) Validate empty field
         if not field or not value:
@@ -412,8 +495,8 @@ def create_app():
             if not re.fullmatch(r"^[A-Z][A-Za-z0-9._-]{2,31}$", value):
                 return jsonify({"ok": True, "valid": False, "exists": False})
 
-            # Ignore your own username
-            if value_lower == current_user:
+            # Ignore user old username
+            if value_lower == current_user.lower():
                 return jsonify({"ok": True, "valid": True, "exists": False})
 
             # Check Firestore for duplicates
@@ -431,10 +514,14 @@ def create_app():
                 return jsonify({"ok": True, "valid": False, "exists": False})
 
             value_lower = value.lower()
-            # Ignore your own email
-            # (email stored inside Firestore doc)
-            user_doc = db.collection("HealthCareP").document(current_user).get()
-            if user_doc.exists:
+            # Ignore user old email
+            user_doc = None
+            for u in db.collection("HealthCareP").stream():
+                if u.id.lower() == current_user.lower():
+                    user_doc = u
+                    break
+            # If same as your current email → OK
+            if user_doc:
                 if user_doc.to_dict().get("Email", "").strip().lower() == value_lower:
                     return jsonify({"ok": True, "valid": True, "exists": False})
 
@@ -455,6 +542,102 @@ def create_app():
     def logout():
         session.clear()
         return redirect(url_for("home"))
+
+    @app.route("/transcribe", methods=["POST"])
+    def transcribe_audio():
+        # Must be logged in
+        if 'user_id' not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        if "audio" not in request.files:
+            return jsonify({"error": "No audio file found. Key must be 'audio'."}), 400
+
+        audio_file = request.files["audio"]
+        if audio_file.filename == "":
+            return jsonify({"error": "Empty filename."}), 400
+
+        # Save temporarily
+        ext = os.path.splitext(audio_file.filename)[1].lower() or ".webm"
+        temp_name = f"{uuid.uuid4().hex}{ext}"
+        temp_path = os.path.join(app.config["AUDIO_UPLOAD_DIR"], temp_name)
+        audio_file.save(temp_path)
+
+        try:
+            # Auto-detect language (you can force language="en" or "ar" if you want)
+            result = app.whisper_model.transcribe(temp_path)
+            text = (result.get("text") or "").strip()
+            language = result.get("language", "unknown")
+            return jsonify({"text": text, "language": language})
+        except Exception as e:
+            return jsonify({"error": f"Transcription failed: {str(e)}"}), 500
+        finally:
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+    def delete_collection(coll_ref, batch_size=50):
+        docs = coll_ref.limit(batch_size).stream()
+        deleted = 0
+
+        for doc in docs:
+            doc.reference.delete()
+            deleted += 1
+
+        if deleted >= batch_size:
+            return delete_collection(coll_ref, batch_size)
+        return deleted
+
+
+    def delete_patient_everything(patient_ref):
+        """
+        Deletes:
+          Patient/{pid}
+            MedicalNote/{noteId}
+              ICDcode/{icdId}
+        then deletes the patient doc itself.
+        """
+        notes_ref = patient_ref.collection("MedicalNote")
+        notes = list(notes_ref.stream())
+
+        for note_doc in notes:
+            note_ref = notes_ref.document(note_doc.id)
+
+            # delete ICD codes under this note
+            icd_ref = note_ref.collection("ICDcode")
+            delete_collection(icd_ref, batch_size=50)
+
+            # delete the note document
+            note_ref.delete()
+
+        # delete patient document
+        patient_ref.delete()
+
+
+    @app.route("/delete_patient/<pid>", methods=["POST"])
+    def delete_patient(pid):
+        if 'user_id' not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        pid = (pid or "").strip()
+
+        if not re.fullmatch(r"\d{10}", pid):
+            return jsonify({"error": "Invalid patient ID."}), 400
+
+        try:
+            patient_ref = db.collection("Patient").document(pid)
+            doc = patient_ref.get()
+
+            if not doc.exists:
+                return jsonify({"error": "Patient not found."}), 404
+
+            delete_patient_everything(patient_ref)
+            return jsonify({"status": "success"})
+
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    
 
     return app
 
