@@ -242,9 +242,18 @@ def create_app():
             return redirect(url_for('Authentication.login'))
 
         if request.method == "GET":
+            pid = request.args.get("pid", "").strip()
+            patient_name = ""
+
+            if pid:
+                doc = db.collection("Patient").document(pid).get()
+                if doc.exists:
+                    patient_name = doc.to_dict().get("FullName", "")
+
             return render_template(
                 "MedicalNotes.html",
-                prefilled_pid=request.args.get("pid", ""),
+                prefilled_pid=pid,
+                prefilled_name=patient_name,
                 note_text="",
                 selected_icd_codes=[]
             )
