@@ -1,27 +1,158 @@
 from dotenv import load_dotenv
-load_dotenv() # Load environment variables from .env file
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
-from datetime import timezone
-# Flask → Needed
-# render_template → Used for HTML pages
-# jsonify → Used for AJAX responses
-# request → Used to read form/AJAX data
-# session → Needed for login sessions
-# redirect, url_for → Needed for redirects
-# flash → Needed for error/success messages
-from firebase.Initialization import db # Needed — Firestore reference
-from datetime import datetime, date
-# datetime → Needed for note creation time
-# date → Needed for DOB validation
+load_dotenv()
+
 import os, json, re, uuid
-# os → file paths, reading .env variables  
-# json → loading icd_data.json  
-# re → regex validation  
-# uuid → unique IDs for notes + ICD records
+from datetime import datetime, date, timezone
+
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
+from firebase.Initialization import db
+
 import whisper
 
+# ----------------------------
+# ML imports (ICD model)
+# ----------------------------
+import torch
+import torch.nn as nn
+from transformers import AutoTokenizer, AutoConfig, RobertaModel
+
+DEVICE = "cpu"  # change to "cuda" if you have GPU + proper torch build
 
 
+# ---- EXACT LabelAttention (same as repo) ----
+class LabelAttention(nn.Module):
+    def __init__(self, input_size: int, projection_size: int, num_classes: int):
+        super().__init__()
+        self.first_linear = nn.Linear(input_size, projection_size, bias=False)
+        self.second_linear = nn.Linear(projection_size, num_classes, bias=False)
+        self.third_linear = nn.Linear(input_size, num_classes)
+        self._init_weights(mean=0.0, std=0.03)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        weights = torch.tanh(self.first_linear(x))
+        att_weights = self.second_linear(weights)
+        att_weights = torch.nn.functional.softmax(att_weights, dim=1).transpose(1, 2)
+        weighted_output = att_weights @ x
+        return (
+            self.third_linear.weight.mul(weighted_output)
+            .sum(dim=2)
+            .add(self.third_linear.bias)
+        )
+
+    def _init_weights(self, mean: float = 0.0, std: float = 0.03) -> None:
+        torch.nn.init.normal_(self.first_linear.weight, mean, std)
+        torch.nn.init.normal_(self.second_linear.weight, mean, std)
+        torch.nn.init.normal_(self.third_linear.weight, mean, std)
+
+
+# ---- EXACT PLMICD forward (same as repo) ----
+class PLMICD(nn.Module):
+    def __init__(self, num_classes: int, model_path: str):
+        super().__init__()
+        self.config = AutoConfig.from_pretrained(
+            model_path, num_labels=num_classes, finetuning_task=None
+        )
+
+        # ✅ safer load
+        self.roberta = RobertaModel.from_pretrained(
+            model_path, config=self.config, add_pooling_layer=False
+        )
+
+        self.attention = LabelAttention(
+            input_size=self.config.hidden_size,
+            projection_size=self.config.hidden_size,
+            num_classes=num_classes,
+        )
+
+    def forward(self, input_ids=None, attention_mask=None):
+        batch_size, num_chunks, chunk_size = input_ids.size()
+
+        outputs = self.roberta(
+            input_ids.view(-1, chunk_size),
+            attention_mask=attention_mask.view(-1, chunk_size) if attention_mask is not None else None,
+            return_dict=False,
+        )
+
+        hidden_output = outputs[0].view(batch_size, num_chunks * chunk_size, -1)
+        logits = self.attention(hidden_output)
+        return logits
+
+
+def preprocess_note_text_exact(text: str) -> str:
+    if text is None:
+        return ""
+    s = str(text).lower()
+    s = re.sub(r"[^A-Za-z0-9]+", " ", s)
+    s = re.sub(r"(\s\d+)+\s", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def normalize_state(sd: dict) -> dict:
+    return {k.replace("module.", ""): v for k, v in sd.items()}
+
+
+# lazy-load globals
+model = None
+tokenizer = None
+BEST_THRESHOLD = None
+index2target = None
+NUM_LABELS = None
+_model_loaded = False
+
+
+def ensure_model_loaded(app: Flask):
+    """Loads your ICD model once. Uses app.root_path so paths never break."""
+    global model, tokenizer, BEST_THRESHOLD, index2target, NUM_LABELS, _model_loaded
+    if _model_loaded:
+        return
+
+    models_dir = os.path.join(app.root_path, "models")
+
+    MODEL_PATH = os.path.join(models_dir, "RoBERTa-base-PM-M3-Voc-hf")
+    CKPT_PATH  = os.path.join(models_dir, "best_model.pt")
+    T2I_PATH   = os.path.join(models_dir, "target2index.json")
+
+    if not os.path.exists(T2I_PATH):
+        raise FileNotFoundError(f"Missing target2index.json at: {T2I_PATH}")
+    if not os.path.exists(CKPT_PATH):
+        raise FileNotFoundError(f"Missing best_model.pt at: {CKPT_PATH}")
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Missing model folder at: {MODEL_PATH}")
+
+    with open(T2I_PATH, "r", encoding="utf-8") as f:
+        target2index = json.load(f)
+
+    index2target = {v: k for k, v in target2index.items()}
+    NUM_LABELS = len(target2index)
+
+    ckpt = torch.load(CKPT_PATH, map_location=DEVICE)
+
+    BEST_THRESHOLD = float(
+        ckpt.get("best_threshold",
+        ckpt.get("threshold",
+        ckpt.get("BEST_THRESHOLD", 0.5)))
+    )
+
+    # some checkpoints store weights under "model"
+    if "model" not in ckpt:
+        raise KeyError("Checkpoint missing key 'model'. Check your best_model.pt structure.")
+
+    state = normalize_state(ckpt["model"])
+
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+
+    model = PLMICD(num_classes=NUM_LABELS, model_path=MODEL_PATH).to(DEVICE)
+    model.load_state_dict(state, strict=False)
+    model.eval()
+
+    _model_loaded = True
+    print("✅ ICD model loaded successfully. threshold =", BEST_THRESHOLD)
+
+
+# ---------------------------------------------------------
+# Create Flask App
+# ---------------------------------------------------------
 # Create Flask App
 def create_app():
     app = Flask(__name__)
@@ -236,11 +367,11 @@ def create_app():
         return render_template("add_patient.html", errors=errors)
 
 
-    # MEDICAL NOTES + ICD CODES
+    # MEDICAL NOTES + ICD (save)
     @app.route("/MedicalNotes", methods=["GET", "POST"])
     def add_note():
-        if 'user_id' not in session:
-            return redirect(url_for('Authentication.login'))
+        if "user_id" not in session:
+            return redirect(url_for("Authentication.login"))
 
         if request.method == "GET":
             pid = request.args.get("pid", "").strip()
@@ -249,7 +380,7 @@ def create_app():
             if pid:
                 doc = db.collection("Patient").document(pid).get()
                 if doc.exists:
-                    patient_name = doc.to_dict().get("FullName", "")
+                    patient_name = (doc.to_dict() or {}).get("FullName", "")
 
             return render_template(
                 "MedicalNotes.html",
@@ -260,19 +391,20 @@ def create_app():
             )
 
         try:
-            data = request.get_json() or request.form
-            pid = data.get("pid")
-            note_text = data.get("note_text")
+            data = request.get_json(silent=True) or request.form or {}
+            pid = (data.get("pid") or "").strip()
+            note_text = (data.get("note_text") or "").strip()
             icd_codes = data.get("icd_codes", [])
-            
+            predicted_codes = data.get("predicted_codes", [])
+
+            if not pid or not note_text or not icd_codes:
+                return jsonify({"status": "error", "message": "Missing fields"}), 400
 
             patient_ref = db.collection("Patient").document(pid)
 
-            # Generate unique Note ID
             note_id = "note_id_" + uuid.uuid4().hex[:8]
             note_ref = patient_ref.collection("MedicalNote").document(note_id)
 
-             # saving the note
             note_ref.set({
                 "NoteID": note_id,
                 "Note": note_text,
@@ -280,15 +412,13 @@ def create_app():
                 "CreatedBy": session.get("user_id")
             })
 
-            # Generate unique icd ID
             icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-            icd_doc_ref = note_ref.collection("ICDcode").document(icd_id)
+            icd_ref = note_ref.collection("ICDcode").document(icd_id)
 
-             # saving the icd code
-            icd_doc_ref.set({
+            icd_ref.set({
                 "ICD_ID": icd_id,
-                "Adjusted": [c["Code"] for c in icd_codes],   # ARRAY of ALL selected codes
-                "Predicted": [],
+                "Adjusted": [c["Code"] for c in icd_codes],
+                "Predicted": predicted_codes,
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
@@ -297,9 +427,7 @@ def create_app():
 
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
-
-
-    # AJAX CHECK ID
+ # AJAX CHECK ID
     @app.route("/check_id")
     def check_id():
         if 'user_id' not in session:
@@ -647,12 +775,66 @@ def create_app():
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
-    
+
+    # ✅ Predict Top-5 ICD
+    @app.post("/predict_icd")
+    def predict_icd_route():
+        if "user_id" not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        ensure_model_loaded(app)
+
+        data = request.get_json(silent=True) or {}
+        raw_text = (data.get("note_text") or "").strip()
+        if not raw_text:
+            return jsonify({"status": "error", "message": "Empty note"}), 400
+
+        clean_text = preprocess_note_text_exact(raw_text)
+        if not clean_text:
+            return jsonify({"status": "error", "message": "Note became empty after preprocessing"}), 400
+
+        enc = tokenizer(
+            clean_text,
+            padding="max_length",
+            truncation=True,
+            max_length=512,
+            add_special_tokens=True,
+            return_tensors="pt",
+        )
+
+        input_ids = enc["input_ids"].to(DEVICE)
+        attention_mask = enc["attention_mask"].to(DEVICE)
+
+        chunk_size = 128
+        num_chunks = 512 // chunk_size
+
+        input_ids = input_ids.view(1, num_chunks, chunk_size)
+        attention_mask = attention_mask.view(1, num_chunks, chunk_size)
+
+        with torch.no_grad():
+            logits = model(input_ids=input_ids, attention_mask=attention_mask)
+            probs = torch.sigmoid(logits)[0].detach().cpu()
+
+        vals, inds = torch.topk(probs, k=5)
+        thr = float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5)
+
+        predictions = []
+        for s, i in zip(vals.tolist(), inds.tolist()):
+            predictions.append({
+                "Code": index2target.get(i, str(i)),
+                "score": float(s),
+                "above_threshold": bool(float(s) >= thr),
+            })
+
+        return jsonify({
+            "status": "success",
+            "predictions": predictions,
+            "threshold": thr,
+        })
 
     return app
 
-# Local Development
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
-
+    app.run(debug=True, use_reloader=False, port=5001)
