@@ -1,11 +1,118 @@
+<!-- =========================================================
+  MedicalNotes.html  (FULL TEMPLATE)
+  - Keeps your ICD browser styling/logic
+  - Adds AI Predict Top-5 card (with checkboxes)
+  - On Save: stores:
+      Adjusted   = selectedCodes (from ICD browser)
+      Predicted  = ONLY checked AI codes
+  - Keeps Mic/Transcribe (audio) exactly
+========================================================= -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Add Medical Note & ICD Codes</title>
+
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
 
+  <style>
+    /* ===== Predictions Card ===== */
+    .pred-card {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.75);
+      border: 1px solid rgba(120, 80, 160, 0.20);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      backdrop-filter: blur(10px);
+    }
+    .pred-card.hidden { display: none; }
+
+    .pred-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .pred-title {
+      font-weight: 800;
+      font-size: 16px;
+      color: #2b1b3a;
+    }
+
+    .pred-sub {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-top: 2px;
+      color: #2b1b3a;
+    }
+
+    .pred-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pred-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.70);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .pred-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .pred-code {
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      color: #2b1b3a;
+    }
+
+    .pred-score {
+      font-weight: 700;
+      color: #2b1b3a;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+
+    .pred-bar {
+      height: 8px;
+      width: 140px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .pred-bar > div {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #7b4bb7, #b08df7);
+    }
+
+    .pred-item input[type="checkbox"]{
+      width: 18px;
+      height: 18px;
+      accent-color: #7b4bb7;
+      cursor: pointer;
+    }
+
+    /* Optional: make predict button consistent if you want */
+    #predictBtn{
+      margin: 10px 0 0;
+    }
+  </style>
 </head>
 
 <body class="form-page medical-note">
@@ -33,40 +140,58 @@
   <!-- Medical Note Form -->
   <form id="noteForm" class="card">
     <div class="row">
-    <label for="name">Patient Name <span class="required">*</span></label>
-    <input name="name" id="name" type="text" value="{{ prefilled_name }}" readonly style="background-color: lightgray;">
+      <label for="name">Patient Name <span class="required">*</span></label>
+      <input name="name" id="name" type="text" value="{{ prefilled_name }}" readonly style="background-color: lightgray;">
     </div>
-  <div class="row">
-    <label for="pid">National ID / Iqama <span class="required">*</span></label>
-    <input name="pid" id="pid" type="text" value="{{ prefilled_pid }}" readonly style="background-color: lightgray;">
-  </div>
 
-  <div class="row">
-    <label for="note_text">Note <span class="required">*</span></label>
-    <textarea name="note_text" id="note_text" rows="6">{{ note_text }}</textarea>
-  </div>
-
-  <!-- mic row -->
-  <div class="row">
-    <div style="display:flex; gap:10px; align-items:center;">
-      <button type="button" id="micBtn" class="mic-btn" aria-label="Start recording">
-        <i class="fa-solid fa-microphone"></i>
-      </button>
-      <span id="recStatus" style="font-weight:600;"></span>
+    <div class="row">
+      <label for="pid">National ID / Iqama <span class="required">*</span></label>
+      <input name="pid" id="pid" type="text" value="{{ prefilled_pid }}" readonly style="background-color: lightgray;">
     </div>
+
+    <div class="row">
+      <label for="note_text">Note <span class="required">*</span></label>
+      <textarea name="note_text" id="note_text" rows="6">{{ note_text }}</textarea>
+    </div>
+
+    <!-- mic row -->
+    <div class="row">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" id="micBtn" class="mic-btn" aria-label="Start recording">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+        <span id="recStatus" style="font-weight:600;"></span>
+      </div>
+    </div>
+  </form>
+
+  <!-- =========================
+       AI Predictions (Top-5)
+       ========================= -->
+  <button type="button" id="predictBtn">✨ Predict Top-5</button>
+
+  <div id="predictionsCard" class="pred-card hidden">
+    <div class="pred-header">
+      <div>
+        <div class="pred-title">AI Suggestions</div>
+        <div class="pred-sub">Uncheck wrong codes before saving</div>
+      </div>
+      <!-- Optional: show threshold from backend -->
+      <div id="predThreshold" class="pred-sub" style="text-align:right;"></div>
+    </div>
+
+    <div id="predictionsList" class="pred-list"></div>
   </div>
-</form>
 
-
-  <!-- ICD Browser -->
+  <!-- =========================
+       ICD Browser
+       ========================= -->
   <div class="icd-container">
     <h2>ICD Code Browser</h2>
 
     <div id="categoryBoxes" class="category-boxes"></div>
-    <!-- Selected ICD codes appear here -->
     <div id="selectedCodesContainer"></div>
 
-    <!-- Search box -->
     <div class="search-section">
       <div class="search-bar">
         <input type="text" id="searchBox" placeholder="🔍 Search ICD code or keyword...">
@@ -80,6 +205,7 @@
   <div class="row actions">
     <button type="button" id="saveBothBtn">Save Note & ICD Codes</button>
   </div>
+
 </main>
 
 <footer>
@@ -87,14 +213,9 @@
 </footer>
 
 <script>
-  // Holds user selected ICD codes
-  let selectedCodes = {{ selected_icd_codes | default([]) | tojson | safe }};
-  let currentCategory = "";     // Currently selected ICD category
-  let currentICDResults = [];   // Results shown in the browser
-  let renderIndex = 0;          //Tracks infinite scroll progress
-  const PAGE_SIZE = 40;         // Number of codes to load at a time
-
-  // Show banner message
+  // =========================
+  // Helpers
+  // =========================
   function showMessage(msg, type = "success", duration = 3000) {
     const banner = document.getElementById("saveMessage");
     banner.textContent = msg;
@@ -102,7 +223,79 @@
     setTimeout(() => (banner.className = "banner"), duration);
   }
 
-   //UPDATE SELECTED ICD UI
+  // =========================
+  // AI Predictions (Top-5)
+  // =========================
+  function showPredictions(preds, threshold = null) {
+    const card = document.getElementById("predictionsCard");
+    const list = document.getElementById("predictionsList");
+    const thrEl = document.getElementById("predThreshold");
+
+    card.classList.remove("hidden");
+    list.innerHTML = "";
+
+    if (threshold !== null && threshold !== undefined) {
+      thrEl.textContent = `Threshold: ${Number(threshold).toFixed(2)}`;
+    } else {
+      thrEl.textContent = "";
+    }
+
+    (preds || []).forEach((p) => {
+      const pct = Math.round((p.score || 0) * 100);
+
+      const row = document.createElement("div");
+      row.className = "pred-item";
+
+      row.innerHTML = `
+        <div class="pred-left">
+          <input class="pred-check" type="checkbox" checked value="${p.Code}">
+          <div class="pred-code">${p.Code}</div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="pred-score">${pct}%</div>
+          <div class="pred-bar"><div style="width:${pct}%;"></div></div>
+        </div>
+      `;
+
+      list.appendChild(row);
+    });
+  }
+
+  async function predictTop5() {
+    const noteRaw = document.getElementById("note_text").value.trim();
+    if (!noteRaw) return alert("Write a note first");
+
+    try {
+      const res = await fetch("/predict_icd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note_text: noteRaw })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data.status !== "success") {
+        alert(data.message || "Prediction failed");
+        return;
+      }
+
+      showPredictions(data.predictions, data.threshold);
+
+    } catch (err) {
+      alert("Server error: " + err.message);
+    }
+  }
+
+  // =========================
+  // ICD Browser (your existing logic)
+  // =========================
+  let selectedCodes = {{ selected_icd_codes | default([]) | tojson | safe }};
+  let currentCategory = "";
+  let currentICDResults = [];
+  let renderIndex = 0;
+  const PAGE_SIZE = 40;
+
   function updateSelectedCodesUI() {
     const container = document.getElementById("selectedCodesContainer");
     container.innerHTML = "";
@@ -117,36 +310,26 @@
     });
   }
 
-   //Remove selected ICD code
   function removeCode(code) {
     selectedCodes = selectedCodes.filter((c) => c.Code !== code);
-
-    // Uncheck Removed selected ICD code checkbox if visible
     const cb = document.querySelector(`#results input[data-code='${code}']`);
     if (cb) cb.checked = false;
-
     updateSelectedCodesUI();
   }
+  window.removeCode = removeCode;
 
-  window.removeCode = removeCode; // so onclick in HTML string works
-
-  // Load Categories 
   function initCategories() {
     fetch("/icd_categories")
       .then((res) => res.json())
       .then((categories) => {
         const container = document.getElementById("categoryBoxes");
         container.innerHTML = "";
-
-        // Create a box for each category
         categories.forEach((cat) => {
           const box = document.createElement("div");
           box.className = "category-box";
           box.textContent = cat;
-          // When clicked highlight the box and load category
           box.onclick = () => {
-            document
-              .querySelectorAll(".category-box")
+            document.querySelectorAll(".category-box")
               .forEach((b) => b.classList.remove("active"));
             box.classList.add("active");
             currentCategory = cat;
@@ -155,45 +338,27 @@
           container.appendChild(box);
         });
       })
-      .catch(() => {
-        showMessage("Failed to load ICD categories.", "error");
-      });
+      .catch(() => showMessage("Failed to load ICD categories.", "error"));
   }
 
-  //  Load ICD by Category
   function loadByCategory(category) {
     fetch(`/icd_by_category/${encodeURIComponent(category)}`)
       .then((res) => res.json())
-      .then((data) => {
-        displayICDResults(data);
-      })
-      .catch(() => {
-        showMessage("Error loading ICD codes.", "error");
-      });
+      .then((data) => displayICDResults(data))
+      .catch(() => showMessage("Error loading ICD codes.", "error"));
   }
 
-  // Search 
   function searchICD() {
     const term = document.getElementById("searchBox").value.trim();
     if (!term) return;
 
-    fetch(
-      `/search_icd?term=${encodeURIComponent(term)}&category=${encodeURIComponent(
-        currentCategory
-      )}`
-    )
+    fetch(`/search_icd?term=${encodeURIComponent(term)}&category=${encodeURIComponent(currentCategory)}`)
       .then((res) => res.json())
-      .then((data) => {
-        displayICDResults(data);
-      })
-      .catch(() => {
-        showMessage("Error searching ICD codes.", "error");
-      });
+      .then((data) => displayICDResults(data))
+      .catch(() => showMessage("Error searching ICD codes.", "error"));
   }
+  window.searchICD = searchICD;
 
-  window.searchICD = searchICD; // used by the Search button onclick
-
-  // Infinite Scroll Rendering
   function displayICDResults(data) {
     const resultsDiv = document.getElementById("results");
     resultsDiv.innerHTML = "";
@@ -206,14 +371,11 @@
       return;
     }
 
-    // Render first batch
     renderNextChunk();
   }
 
-  //Render a batch of ICD codes
   function renderNextChunk() {
     const resultsDiv = document.getElementById("results");
-
     if (!currentICDResults.length) return;
     if (renderIndex >= currentICDResults.length) return;
 
@@ -223,38 +385,24 @@
       const div = document.createElement("div");
       div.className = "result-item";
 
-      const isChecked = selectedCodes.some((c) => c.Code === item.Code)
-        ? "checked"
-        : "";
-
+      const isChecked = selectedCodes.some((c) => c.Code === item.Code) ? "checked" : "";
       div.innerHTML = `
-        <input type="checkbox" data-code="${item.Code}"
-               data-desc="${item.Description}" ${isChecked}>
+        <input type="checkbox" data-code="${item.Code}" data-desc="${item.Description}" ${isChecked}>
         <strong style="margin-left:5px;">${item.Code}</strong> - ${item.Description}
       `;
-
       resultsDiv.appendChild(div);
     }
 
     renderIndex = end;
   }
 
- // Detect scroll near bottom → load more
   function handlePageScroll() {
-    // If nothing to render or all rendered , do nothing
-    if (!currentICDResults.length || renderIndex >= currentICDResults.length) {
-      return;
-    }
-
+    if (!currentICDResults.length || renderIndex >= currentICDResults.length) return;
     const scrollPosition = window.innerHeight + window.scrollY;
-    const threshold = document.body.offsetHeight - 200; // 200px from bottom
-
-    if (scrollPosition >= threshold) {
-      renderNextChunk();
-    }
+    const threshold = document.body.offsetHeight - 200;
+    if (scrollPosition >= threshold) renderNextChunk();
   }
 
-  // Select and Unselect Codes 
   function initResultsListener() {
     document.getElementById("results").addEventListener("change", (e) => {
       if (!e.target.matches("input[type='checkbox']")) return;
@@ -263,7 +411,6 @@
       const desc = e.target.dataset.desc;
 
       if (e.target.checked) {
-        // Add code if not already selected
         if (!selectedCodes.find((c) => c.Code === code)) {
           selectedCodes.push({ Code: code, Description: desc });
         }
@@ -275,189 +422,189 @@
     });
   }
 
-  // Save Note and ICD Codes
+  // =========================
+  // Save Note + Codes
+  // Adjusted = selectedCodes
+  // Predicted = ONLY checked AI codes
+  // =========================
   function initSaveButton() {
-    document
-      .getElementById("saveBothBtn")
-      .addEventListener("click", async () => {
-        const pid = document.getElementById("pid").value.trim();
-        const note = document.getElementById("note_text").value.trim();
+    document.getElementById("saveBothBtn").addEventListener("click", async () => {
+      const pid = document.getElementById("pid").value.trim();
+      const note = document.getElementById("note_text").value.trim();
 
-        if (!pid) return showMessage("Patient ID is missing!", "error");
-        if (!note) return showMessage("Please enter a medical note!", "error");
-        if (selectedCodes.length === 0)
-          return showMessage("Please select at least one ICD code!", "error");
+      if (!pid) return showMessage("Patient ID is missing!", "error");
+      if (!note) return showMessage("Please enter a medical note!", "error");
+      if (selectedCodes.length === 0) return showMessage("Please select at least one ICD code!", "error");
 
-        try {
-          const response = await fetch("/MedicalNotes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              pid,
-              note_text: note,
-              icd_codes: selectedCodes,
-            }),
-          });
+      // ✅ ONLY checked AI predictions are saved
+      const checkedPredicted = Array.from(
+        document.querySelectorAll("#predictionsList input.pred-check:checked")
+      ).map(cb => cb.value);
 
-          const result = await response.json();
+      try {
+        const response = await fetch("/MedicalNotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pid: pid,
+            note_text: note,
+            icd_codes: selectedCodes,
+            predicted_codes: checkedPredicted
+          }),
+        });
 
-          if (result.status === "success") {
-            showMessage("✅ Saved successfully!", "success");
-            setTimeout(
-              () => (window.location.href = result.redirect),
-              1500
-            );
-          } else {
-            showMessage("❌ " + (result.message || "Error saving data"), "error");
-          }
-        } catch (err) {
-          showMessage("An error occurred while saving.", "error");
+        const result = await response.json().catch(() => ({}));
+
+        if (result.status === "success") {
+          showMessage("✅ Saved successfully!", "success");
+          setTimeout(() => (window.location.href = result.redirect), 1500);
+        } else {
+          showMessage("❌ " + (result.message || "Error saving data"), "error");
         }
-      });
+      } catch (err) {
+        showMessage("An error occurred while saving.", "error");
+      }
+    });
   }
+
+  // ===============================
+  // One-button Mic Dictation (KEEP AUDIO)
+  // ===============================
+  let mediaRecorder;
+  let audioChunks = [];
+  let recordedBlob = null;
+  let isRecording = false;
+  let activeStream = null;
+
+  function setRecStatus(msg) {
+    const el = document.getElementById("recStatus");
+    if (el) el.textContent = msg;
+  }
+
+  function setMicUI(recording) {
+    const btn = document.getElementById("micBtn");
+    if (!btn) return;
+
+    if (recording) {
+      btn.classList.add("recording");
+      btn.innerHTML = `<i class="fa-solid fa-stop"></i>`;
+      btn.setAttribute("aria-label", "Stop recording");
+    } else {
+      btn.classList.remove("recording");
+      btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+      btn.setAttribute("aria-label", "Start recording");
+    }
+  }
+
+  async function startRecording() {
+    recordedBlob = null;
+    audioChunks = [];
+
+    try {
+      activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      let options = {};
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+        options.mimeType = "audio/webm;codecs=opus";
+      } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+        options.mimeType = "audio/webm";
+      }
+
+      mediaRecorder = new MediaRecorder(activeStream, options);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstart = () => {
+        setRecStatus("Recording...");
+        isRecording = true;
+        setMicUI(true);
+      };
+
+      mediaRecorder.onstop = async () => {
+        setRecStatus("Transcribing...");
+        isRecording = false;
+        setMicUI(false);
+
+        recordedBlob = new Blob(audioChunks, {
+          type: mediaRecorder.mimeType || "audio/webm",
+        });
+
+        if (activeStream) {
+          activeStream.getTracks().forEach((t) => t.stop());
+          activeStream = null;
+        }
+
+        await transcribeRecording();
+      };
+
+      mediaRecorder.start();
+    } catch (err) {
+      setRecStatus("Mic error: " + err.message);
+      isRecording = false;
+      setMicUI(false);
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+  }
+
+  async function transcribeRecording() {
+    if (!recordedBlob) {
+      setRecStatus("No recording found.");
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("audio", recordedBlob, "note.webm");
+
+    try {
+      const res = await fetch("/transcribe", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setRecStatus("Error: " + (data.error || "Unknown"));
+        return;
+      }
+
+      const ta = document.getElementById("note_text");
+      const newText = (data.text || "").trim();
+      if (ta && newText) {
+        ta.value = ta.value ? (ta.value.trim() + "\n" + newText) : newText;
+      }
+
+      setRecStatus("Done (lang: " + (data.language || "unknown") + ")");
+    } catch (err) {
+      setRecStatus("Server error: " + err.message);
+    } finally {
+      recordedBlob = null;
+      audioChunks = [];
+    }
+  }
+
+  function toggleMic() {
+    if (isRecording) stopRecording();
+    else startRecording();
+  }
+
+  // =========================
+  // Init
+  // =========================
   window.addEventListener("load", () => {
     updateSelectedCodesUI();
     initCategories();
     initResultsListener();
     initSaveButton();
 
-    // Attach infinite scroll once
     window.addEventListener("scroll", handlePageScroll);
+
+    document.getElementById("predictBtn")?.addEventListener("click", predictTop5);
+    document.getElementById("micBtn")?.addEventListener("click", toggleMic);
   });
- // ===============================
-// One-button Mic Dictation
-// Click mic -> record
-// Click stop -> stop + auto transcribe -> fill textarea
-// ===============================
-let mediaRecorder;
-let audioChunks = [];
-let recordedBlob = null;
-let isRecording = false;
-let activeStream = null;
-
-function setRecStatus(msg) {
-  const el = document.getElementById("recStatus");
-  if (el) el.textContent = msg;
-}
-
-function setMicUI(recording) {
-  const btn = document.getElementById("micBtn");
-  if (!btn) return;
-
-  if (recording) {
-    btn.classList.add("recording");
-    btn.innerHTML = `<i class="fa-solid fa-stop"></i>`;
-    btn.setAttribute("aria-label", "Stop recording");
-  } else {
-    btn.classList.remove("recording");
-    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
-    btn.setAttribute("aria-label", "Start recording");
-  }
-}
-
-async function startRecording() {
-  recordedBlob = null;
-  audioChunks = [];
-
-  try {
-    activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    let options = {};
-    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-      options.mimeType = "audio/webm;codecs=opus";
-    } else if (MediaRecorder.isTypeSupported("audio/webm")) {
-      options.mimeType = "audio/webm";
-    }
-
-    mediaRecorder = new MediaRecorder(activeStream, options);
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) audioChunks.push(e.data);
-    };
-
-    mediaRecorder.onstart = () => {
-      setRecStatus("Recording...");
-      isRecording = true;
-      setMicUI(true);
-    };
-
-    mediaRecorder.onstop = async () => {
-      setRecStatus("Transcribing...");
-      isRecording = false;
-      setMicUI(false);
-
-      recordedBlob = new Blob(audioChunks, {
-        type: mediaRecorder.mimeType || "audio/webm",
-      });
-
-      // Release mic
-      if (activeStream) {
-        activeStream.getTracks().forEach((t) => t.stop());
-        activeStream = null;
-      }
-
-      // Auto transcribe after stop
-      await transcribeRecording();
-    };
-
-    mediaRecorder.start();
-
-  } catch (err) {
-    setRecStatus("Mic error: " + err.message);
-    isRecording = false;
-    setMicUI(false);
-  }
-}
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
-}
-
-async function transcribeRecording() {
-  if (!recordedBlob) {
-    setRecStatus("No recording found.");
-    return;
-  }
-
-  const fd = new FormData();
-  fd.append("audio", recordedBlob, "note.webm");
-
-  try {
-    const res = await fetch("/transcribe", { method: "POST", body: fd });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      setRecStatus("Error: " + (data.error || "Unknown"));
-      return;
-    }
-
-    // Append to existing note (better UX than overwrite)
-    const ta = document.getElementById("note_text");
-    const newText = (data.text || "").trim();
-    if (ta && newText) {
-      ta.value = ta.value ? (ta.value.trim() + "\n" + newText) : newText;
-    }
-
-    setRecStatus("Done (lang: " + (data.language || "unknown") + ")");
-  } catch (err) {
-    setRecStatus("Server error: " + err.message);
-  } finally {
-    recordedBlob = null;
-    audioChunks = [];
-  }
-}
-
-// Toggle mic button
-function toggleMic() {
-  if (isRecording) stopRecording();
-  else startRecording();
-}
-window.addEventListener("load", () => {
-  document.getElementById("micBtn")?.addEventListener("click", toggleMic);
-});
-
 </script>
 
 </body>
