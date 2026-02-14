@@ -923,6 +923,24 @@ input, select, textarea, button {
     /* Selected codes */
     #selectedCodesContainer { display: flex; overflow-x: auto; white-space: nowrap; gap: 5px; margin-bottom: 10px; padding-bottom: 5px; }
     .selected-code { background-color: #007BFF; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+  
+    body.edit-patient .selected-codes.is-invalid {
+      border: 1px solid #dc3545;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    body.edit-patient .selected-code {
+      background-color: #f3e8ff;   
+      color: #6b21a8;              
+      border: 1px solid #e9d5ff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+ 
+    body.edit-patient .selected-code:hover {
+      background-color: #ede2ff;
+    }
 
     /* Hide scrollbars */
     .category-boxes, #selectedCodesContainer { -ms-overflow-style: none; scrollbar-width: none; }
@@ -943,6 +961,20 @@ input, select, textarea, button {
 
     .search-btn { background-color: #007BFF; padding: 12px 22px; border-radius: 8px; }
     .search-btn:hover { background-color: #0056b3; }
+
+    .no-results {
+        text-align: center;
+        padding: 40px 20px;
+        color: #777;
+        font-size: 16px;
+    }
+    
+    .no-results i {
+        font-size: 32px;
+        color: #9975C1;
+        margin-bottom: 10px;
+        display: block;
+    }
 
       /* Password token */
       .pw-checklist { list-style: none; padding-left: 0; margin-top: 8px; display: none;}
@@ -1136,3 +1168,4 @@ input, select, textarea, button {
   background-position: right 12px center;
   background-size: 16px;
 }
+
