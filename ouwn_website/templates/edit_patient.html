@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edit Patient</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body class="form-page medical-note">
+{% include "header.html" %}
+
+<nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
+  <div class="ouwn-crumbs">
+    <a class="crumb" href="{{ url_for('dashboard') }}">
+      <i class="fa-solid fa-house"></i>
+      <span>Dashboard</span>
+    </a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span class="crumb current" aria-current="page">
+      <i class="fa-solid fa-pen-to-square"></i>
+      <span>Edit patient</span>
+    </span>
+  </div>
+</nav>
+
+<main class="container card" style="padding:24px 24px 16px;">
+  <h1 style="margin-top:0">Edit Patient</h1>
+
+  {% if errors %}
+  <div class="alert error" style="margin-bottom:16px">
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <form method="POST" novalidate>
+
+    <!-- Full Name -->
+    <div class='row'>
+      <label for='full_name'>Full Name<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='full_name' name='full_name' type='text' required
+               value="{{ form.full_name }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Date of Birth -->
+    <div class='row'>
+      <label for='dob'>Date of Birth<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='dob' name='dob' type='date' required
+               value="{{ form.dob }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Gender -->
+    <div class="row">
+      <label for="gender">Gender<span class="required">*</span></label>
+      <div class="control">
+        <select id="gender" name="gender" required>
+          <option value="">Choose</option>
+          <option value="M" {% if form.gender == 'M' %}selected{% endif %}>Male</option>
+          <option value="F" {% if form.gender == 'F' %}selected{% endif %}>Female</option>
+        </select>
+        <div class="feedback"></div>
+      </div>
+    </div>
+
+    <!-- National ID (uneditable) -->
+    <div class='row'>
+      <label for='ID'>National ID / Iqama<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='ID' name='ID' type='text' value="{{ pid }}" disabled>
+        <input type="hidden" name="pid" value="{{ pid }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Phone -->
+    <div class='row'>
+      <label for='phone'>Phone<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='phone' name='phone' type='tel' maxlength='10' minlength='10' required
+               oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
+               value="{{ form.phone }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Email -->
+    <div class='row'>
+      <label for='email'>Email<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='email' name='email' type='email' required
+               value="{{ form.email }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Address -->
+    <div class='row'>
+      <label for='address'>Address<span class='required'>*</span></label>
+      <div class='control'>
+        <input id='address' name='address' type='text' required
+               value="{{ form.address }}">
+        <div class='feedback'></div>
+      </div>
+    </div>
+
+    <!-- Blood Type -->
+    <div class="row">
+      <label for="blood_type">Blood Type<span class="required">*</span></label>
+      <div class="control">
+        <select id="blood_type" name="blood_type" required>
+          <option value="">Select</option>
+          {% for b in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+            <option value="{{ b }}" {% if form.blood_type == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+        <div class="feedback"></div>
+      </div>
+    </div>
+
+    <hr style="margin:18px 0; opacity:.25">
+
+    <h2 style="margin:0 0 12px">Medical Notes & ICD Codes</h2>
+
+    {% if notes and notes|length > 0 %}
+      {% for n in notes %}
+        <div class="card" style="padding:14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+            <strong>Note</strong>
+            <small style="opacity:.75">
+              {{ n.created_date }}
+            </small>
+          </div>
+
+          <input type="hidden" name="note_id[]" value="{{ n.note_id }}">
+          <input type="hidden" name="icd_id[]" value="{{ n.icd_id }}">
+
+          <div class="row" style="margin-top:10px;">
+            <label>Note Text</label>
+            <div class="control">
+              <textarea name="note_text[]" rows="4" style="width:100%; resize:vertical;">{{ n.note_text }}</textarea>
+            </div>
+          </div>
+
+          <div class="row">
+  <label>Adjusted ICD Codes</label>
+  <div class="control">
+
+    {% set note_i = loop.index0 %}
+
+<div class="selected-codes" id="chips-{{ note_i }}" style="margin-bottom:10px;">
+  {% set codes = (n.icd_codes_str or '') %}
+  {% if codes.strip() %}
+    {% for c in codes.split(',') %}
+      {% set code = c.strip() %}
+      {% if code %}
+        <span class="selected-code" style="display:inline-flex; gap:8px; align-items:center;">
+          <span>{{ code }}</span>
+          <span class="chip-x"
+                style="cursor:pointer;font-weight:bold;"
+                data-note="{{ note_i }}"
+                data-code="{{ code }}">×</span>
+        </span>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <small style="opacity:.75;">No ICD codes selected.</small>
+  {% endif %}
+</div>
+
+<input type="hidden"
+       name="icd_codes[]"
+       id="icd-input-{{ note_i }}"
+       value="{{ n.icd_codes_str }}">
+
+
+                <button type="button"
+                        class="btn-secondary"
+                        onclick="openICDModal({{ note_i }})">
+                <i class="fa-solid fa-magnifying-glass"></i> Browse / Search ICD Codes
+                </button>
+
+                
+            </div>
+            </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p style="opacity:.8">No medical notes found for this patient.</p>
+    {% endif %}
+
+    <div class="row actions" style="display:flex; gap:10px;">
+      <button type="submit">
+        <i class="fa-solid fa-floppy-disk"></i> Save Changes
+      </button>
+      <button type="button" class="btn-secondary" onclick="location.href='{{ url_for('dashboard') }}'">
+        Cancel
+      </button>
+    </div>
+
+  </form>
+</main>
+
+
+<div id="icdModal" class="confirm-modal">
+  <div class="confirm-box" style="max-width:900px; width:92%;">
+    <h3 class="confirm-title">
+      <i class="fa-solid fa-list-check"></i>
+      ICD Code Browser
+    </h3>
+
+    <p class="confirm-message" style="margin-top:6px;">
+      Search and select ICD codes for this note.
+    </p>
+
+    <div class="icd-container" style="margin-top:12px;">
+      <div id="icdCategoryBoxes" class="category-boxes"></div>
+
+      <div id="icdSelectedCodesContainer" style="margin-top:10px;"></div>
+
+      <!-- Search -->
+      <div class="search-section">
+        <div class="search-bar">
+          <input type="text" id="icdSearchBox" placeholder="🔍 Search ICD code or keyword...">
+        </div>
+        <button type="button" class="search-btn" id="icdSearchBtn">Search</button>
+      </div>
+
+      <div id="icdResults" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="confirm-actions" style="margin-top:14px;">
+      <button type="button" id="icdCancelBtn" class="btn-secondary">Cancel</button>
+      <button type="button" id="icdSaveBtn" class="btn-primary">Save ICD Codes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+document.addEventListener("click", (e) => {
+  const x = e.target.closest(".chip-x");
+  if (!x) return;
+
+  const noteIndex = Number(x.dataset.note);
+  const code = (x.dataset.code || "").trim();
+
+  removeChipCode(noteIndex, code);
+});
+
+let activeNoteIndex = null;
+
+let selectedCodes = [];       
+let currentCategory = "All";
+let currentICDResults = [];
+let renderIndex = 0;
+const PAGE_SIZE = 40;
+
+function normalizeCodeListFromHidden(hiddenValue) {
+  const codes = (hiddenValue || "")
+    .split(",")
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  return codes.map(c => ({ Code: c, Description: "" }));
+}
+
+function selectedCodesToCommaString() {
+  return selectedCodes.map(c => (c.Code || "").trim().toUpperCase()).filter(Boolean).join(", ");
+}
+
+function updateModalSelectedUI() {
+  const container = document.getElementById("icdSelectedCodesContainer");
+  container.innerHTML = "";
+
+  if (!selectedCodes.length) {
+    container.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+    return;
+  }
+
+  selectedCodes.forEach((c) => {
+    const div = document.createElement("div");
+    div.className = "selected-code";
+    div.style.display = "inline-flex";
+    div.style.alignItems = "center";
+    div.style.gap = "8px";
+    div.style.margin = "4px 6px 0 0";
+    div.innerHTML = `
+      ${c.Code}
+      <span style="cursor:pointer;font-weight:bold;" title="Remove">×</span>
+    `;
+    div.querySelector("span").onclick = () => removeModalCode(c.Code);
+    container.appendChild(div);
+  });
+}
+
+function removeModalCode(code) {
+  code = (code || "").trim().toUpperCase();
+  selectedCodes = selectedCodes.filter((c) => (c.Code || "").trim().toUpperCase() !== code);
+
+  const cb = document.querySelector(`#icdResults input[data-code='${code}']`);
+  if (cb) cb.checked = false;
+
+  updateModalSelectedUI();
+}
+
+
+async function initModalCategories() {
+  const container = document.getElementById("icdCategoryBoxes");
+  container.innerHTML = "";
+
+  try {
+    const res = await fetch("/icd_categories");
+    const categories = await res.json();
+
+    categories.forEach((cat) => {
+      const box = document.createElement("div");
+      box.className = "category-box";
+      box.textContent = cat;
+
+      box.onclick = () => {
+        document.querySelectorAll("#icdCategoryBoxes .category-box")
+          .forEach(b => b.classList.remove("active"));
+
+        box.classList.add("active");
+        currentCategory = cat;
+        loadByCategory(cat);
+      };
+
+      container.appendChild(box);
+    });
+
+    const first = Array.from(container.querySelectorAll(".category-box"))
+      .find(b => (b.textContent || "").toLowerCase() === "all") || container.querySelector(".category-box");
+
+    if (first) first.click();
+
+  } catch (e) {
+    container.innerHTML = `<small style="opacity:.75;">Failed to load categories.</small>`;
+  }
+}
+
+async function loadByCategory(category) {
+  try {
+    const res = await fetch(`/icd_by_category/${encodeURIComponent(category)}`);
+    const data = await res.json();
+    displayICDResults(data);
+  } catch {
+    displayICDResults([]);
+  }
+}
+
+async function searchICD() {
+  const term = document.getElementById("icdSearchBox").value.trim();
+  if (!term) return;
+
+  try {
+    const res = await fetch(`/search_icd?term=${encodeURIComponent(term)}&category=${encodeURIComponent(currentCategory)}`);
+    const data = await res.json();
+    displayICDResults(data);
+  } catch {
+    displayICDResults([]);
+  }
+}
+
+window.addEventListener("load", () => {
+  const box = document.getElementById("icdSearchBox");
+  if (!box) return;
+
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();   // prevents the edit form from submitting
+      searchICD();          // triggers ICD search
+    }
+  });
+});
+
+
+
+function displayICDResults(data) {
+  const resultsDiv = document.getElementById("icdResults");
+  resultsDiv.innerHTML = "";
+
+  currentICDResults = data || [];
+  renderIndex = 0;
+
+  if (!currentICDResults.length) {
+    resultsDiv.innerHTML = "<p>No results found.</p>";
+    return;
+  }
+
+  renderNextChunk();
+}
+
+function renderNextChunk() {
+  const resultsDiv = document.getElementById("icdResults");
+
+  if (!currentICDResults.length) return;
+  if (renderIndex >= currentICDResults.length) return;
+
+  const end = Math.min(renderIndex + PAGE_SIZE, currentICDResults.length);
+
+  for (let i = renderIndex; i < end; i++) {
+    const item = currentICDResults[i];
+    const div = document.createElement("div");
+    div.className = "result-item";
+
+    const isChecked = selectedCodes.some((c) => c.Code === item.Code) ? "checked" : "";
+
+    div.innerHTML = `
+      <input type="checkbox" data-code="${item.Code}" data-desc="${item.Description}" ${isChecked}>
+      <strong style="margin-left:5px;">${item.Code}</strong> - ${item.Description}
+    `;
+
+    resultsDiv.appendChild(div);
+  }
+
+  renderIndex = end;
+}
+
+function handleModalScroll(e) {
+  const el = e.target;
+  if (!el) return;
+
+  const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 120;
+  if (nearBottom) renderNextChunk();
+}
+
+window.openICDModal = async function(noteIndex) {
+  activeNoteIndex = noteIndex;
+
+  const hidden = document.getElementById(`icd-input-${noteIndex}`);
+  selectedCodes = normalizeCodeListFromHidden(hidden ? hidden.value : "");
+
+  updateModalSelectedUI();
+
+  const modal = document.getElementById("icdModal");
+  modal.classList.add("show");
+
+  await initModalCategories();
+
+  document.getElementById("icdSearchBox").value = "";
+  document.getElementById("icdResults").innerHTML = "";
+
+  const results = document.getElementById("icdResults");
+  results.style.maxHeight = "320px";
+  results.style.overflow = "auto";
+  results.removeEventListener("scroll", handleModalScroll);
+  results.addEventListener("scroll", handleModalScroll);
+};
+
+function closeICDModal() {
+  const modal = document.getElementById("icdModal");
+  modal.classList.remove("show");
+  activeNoteIndex = null;
+}
+
+document.getElementById("icdResults").addEventListener("change", (e) => {
+  if (!e.target.matches("input[type='checkbox']")) return;
+
+  const code = (e.target.dataset.code || "").trim().toUpperCase();
+  const desc = e.target.dataset.desc || "";
+
+  if (e.target.checked) {
+    if (!selectedCodes.find((c) => c.Code === code)) {
+      selectedCodes.push({ Code: code, Description: desc });
+    }
+  } else {
+    selectedCodes = selectedCodes.filter((c) => c.Code !== code);
+  }
+
+  updateModalSelectedUI();
+});
+
+document.getElementById("icdSearchBtn").addEventListener("click", searchICD);
+document.getElementById("icdCancelBtn").addEventListener("click", closeICDModal);
+
+document.getElementById("icdSaveBtn").addEventListener("click", () => {
+  if (activeNoteIndex === null) return;
+
+  const hidden = document.getElementById(`icd-input-${activeNoteIndex}`);
+  const chips = document.getElementById(`chips-${activeNoteIndex}`);
+
+  const comma = selectedCodesToCommaString();
+
+  if (hidden) hidden.value = comma;
+
+  if (chips) {
+    chips.innerHTML = "";
+    if (!comma) {
+      chips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+    } else {
+      comma.split(",").map(s => s.trim()).filter(Boolean).forEach(code => {
+        const span = document.createElement("span");
+        span.className = "selected-code";
+        span.style.display = "inline-flex";
+        span.style.gap = "8px";
+        span.style.alignItems = "center";
+        span.innerHTML = `
+        <span>${code}</span>
+        <span class="chip-x"
+              style="cursor:pointer;font-weight:bold;"
+              data-note="${activeNoteIndex}"
+              data-code="${code}">×</span>
+      `;
+        chips.appendChild(span);
+      });
+    }
+  }
+
+  closeICDModal();
+});
+
+document.getElementById("icdModal").addEventListener("click", (e) => {
+  if (e.target.id === "icdModal") closeICDModal();
+});
+
+document.addEventListener("keydown", (e) => {
+  const modal = document.getElementById("icdModal");
+  if (e.key === "Escape" && modal.classList.contains("show")) {
+    closeICDModal();
+  }
+});
+
+window.removeChipCode = function(noteIndex, code) {
+  code = (code || "").trim().toUpperCase();
+  if (!code) return;
+
+  const hidden = document.getElementById(`icd-input-${noteIndex}`);
+  const chips = document.getElementById(`chips-${noteIndex}`);
+  if (!hidden || !chips) return;
+
+  let codes = (hidden.value || "")
+    .split(",")
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  codes = codes.filter(c => c !== code);
+
+  const newValue = codes.join(", ");
+  hidden.value = newValue;
+
+  chips.innerHTML = "";
+  if (!codes.length) {
+    chips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+    return;
+  }
+
+  codes.forEach(c => {
+    const span = document.createElement("span");
+    span.className = "selected-code";
+    span.style.display = "inline-flex";
+    span.style.gap = "8px";
+    span.style.alignItems = "center";
+    span.innerHTML = `
+    <span>${c}</span>
+    <span class="chip-x"
+          style="cursor:pointer;font-weight:bold;"
+          data-note="${noteIndex}"
+          data-code="${c}">×</span>
+  `;
+    chips.appendChild(span);
+  });
+};
+
+const touched = new Set();     
+let forceShowErrors = false;    
+
+
+function setValidity(input, ok, msg){
+  const fb = input.closest('.control')?.querySelector('.feedback');
+
+  const shouldShow = forceShowErrors || touched.has(input.id);
+
+  if (!shouldShow) {
+    input.classList.remove('is-valid', 'is-invalid');
+    if (fb) {
+      fb.textContent = "";
+      fb.classList.remove("valid");
+    }
+    return;
+  }
+
+  input.classList.toggle('is-valid', ok);
+  input.classList.toggle('is-invalid', !ok);
+
+  if (fb) {
+    fb.textContent = ok ? "" : (msg || "");
+    fb.classList.toggle('valid', ok);
+  }
+}
+
+function markTouched(el){
+  if (!el || !el.id) return;
+  touched.add(el.id);
+}
+
+const dob = document.getElementById('dob');
+function checkDob() {
+  if (!dob) return false;
+  const v = dob.value;
+
+  if (!v) { setValidity(dob, false, "Date of Birth is required."); return false; }
+
+  const d = new Date(v + "T00:00:00");
+  if (isNaN(d.getTime())) { setValidity(dob, false, "Invalid date."); return false; }
+
+  const now = new Date();
+  if (d > now) { setValidity(dob, false, "Date of Birth cannot be in the future."); return false; }
+
+  let age = now.getFullYear() - d.getFullYear();
+  const mdNow = (now.getMonth()+1)*100 + now.getDate();
+  const mdDob = (d.getMonth()+1)*100 + d.getDate();
+  if (mdDob > mdNow) age--;
+
+  if (age > 130) { setValidity(dob, false, "Age cannot exceed 130 years."); return false; }
+
+  setValidity(dob, true);
+  return true;
+}
+
+if (dob) {
+  dob.addEventListener('input', () => { markTouched(dob); checkDob(); });
+  dob.addEventListener('change', () => { markTouched(dob); checkDob(); });
+  dob.addEventListener('blur',  () => { markTouched(dob); checkDob(); });
+}
+
+const phone = document.getElementById('phone');
+function checkPhone() {
+  if (!phone) return false;
+  const ok = /^05\d{8}$/.test(phone.value.trim());
+  setValidity(phone, ok, "Must start with 05 and be 10 digits.");
+  return ok;
+}
+if (phone) {
+  phone.addEventListener('input', () => { markTouched(phone); checkPhone(); });
+  phone.addEventListener('blur',  () => { markTouched(phone); checkPhone(); });
+}
+
+const email = document.getElementById('email');
+function checkEmail() {
+  if (!email) return false;
+  const ok = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email.value.trim());
+  setValidity(email, ok, "Invalid email format.");
+  return ok;
+}
+if (email) {
+  email.addEventListener('input', () => { markTouched(email); checkEmail(); });
+  email.addEventListener('blur',  () => { markTouched(email); checkEmail(); });
+}
+
+function checkRequired(input, message) {
+  if (!input) return false;
+  const ok = !!input.value && input.value.trim() !== "";
+  setValidity(input, ok, message || "This field is required.");
+  return ok;
+}
+
+function scrollToFirstInvalid(formEl) {
+  const first = formEl.querySelector(".is-invalid");
+  if (first) {
+    first.scrollIntoView({ behavior: "smooth", block: "center" });
+    first.focus({ preventScroll: true });
+  }
+}
+
+
+window.addEventListener("load", () => {
+  
+
+  const form = document.querySelector("form");
+  if (!form) return;
+
+  form.addEventListener("submit", (e) => {
+  forceShowErrors = true;
+  let ok = true; 
+ 
+    const fullName = document.getElementById("full_name");
+    const gender = document.getElementById("gender");
+    const address = document.getElementById("address");
+    const blood = document.getElementById("blood_type");
+
+    ok = checkRequired(fullName, "Full Name is required.") && ok;
+    ok = checkDob() && ok;
+    ok = checkRequired(gender, "Gender is required.") && ok;
+    ok = checkPhone() && ok;
+    ok = checkEmail() && ok;
+    ok = checkRequired(address, "Address is required.") && ok;
+    ok = checkRequired(blood, "Blood Type is required.") && ok;
+
+ 
+    const noteAreas = form.querySelectorAll("textarea[name='note_text[]']");
+    noteAreas.forEach((ta) => {
+      if (!ta.value.trim()) {
+        ta.classList.add("is-invalid");
+        ok = false;
+      } else {
+        ta.classList.remove("is-invalid");
+      }
+    });
+
+   
+    const icdHidden = form.querySelectorAll("input[name='icd_codes[]']");
+    icdHidden.forEach((inp, idx) => {
+      const hasOne = (inp.value || "").split(",").map(s => s.trim()).filter(Boolean).length > 0;
+      if (!hasOne) ok = false;
+
+      const chips = document.getElementById(`chips-${idx}`);
+      if (chips) chips.classList.toggle("is-invalid", !hasOne);
+    });
+
+
+    if (!ok) {
+      e.preventDefault();
+
+      
+      alert("Please enter valid information in highlighted fields before saving.");
+
+      scrollToFirstInvalid(form);
+    }
+  });
+});
+</script>
+</body>
+</html>
