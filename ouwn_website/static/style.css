@@ -962,20 +962,6 @@ input, select, textarea, button {
     .search-btn { background-color: #007BFF; padding: 12px 22px; border-radius: 8px; }
     .search-btn:hover { background-color: #0056b3; }
 
-    .no-results {
-        text-align: center;
-        padding: 40px 20px;
-        color: #777;
-        font-size: 16px;
-    }
-    
-    .no-results i {
-        font-size: 32px;
-        color: #9975C1;
-        margin-bottom: 10px;
-        display: block;
-    }
-
       /* Password token */
       .pw-checklist { list-style: none; padding-left: 0; margin-top: 8px; display: none;}
       .pw-checklist li { margin-bottom: 6px; }
@@ -1168,4 +1154,5 @@ input, select, textarea, button {
   background-position: right 12px center;
   background-size: 16px;
 }
+
 
