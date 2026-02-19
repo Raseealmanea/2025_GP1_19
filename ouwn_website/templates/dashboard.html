@@ -50,8 +50,8 @@
 <select id="sortBy" onchange="location = this.value">
   <option value="">-- Select --</option>
 
-<option value="{{ url_for('dashboard', sort='name_asc') }}" {% if request.args.get('sort')=='name_asc' %}selected{% endif %}>Name (A → Z)</option>
-<option value="{{ url_for('dashboard', sort='name_desc') }}" {% if request.args.get('sort')=='name_desc' %}selected{% endif %}>Name (Z → A)</option>
+<option value="{{ url_for('dashboard', sort='name_asc') }}" {% if request.args.get('sort')=='name_asc' %}selected{% endif %}>First Name (A → Z)</option>
+<option value="{{ url_for('dashboard', sort='name_desc') }}" {% if request.args.get('sort')=='name_desc' %}selected{% endif %}>First Name (Z → A)</option>
 <option value="{{ url_for('dashboard', sort='age_young') }}" {% if request.args.get('sort')=='age_young' %}selected{% endif %}>Age (Younger first)</option>
 <option value="{{ url_for('dashboard', sort='age_old') }}" {% if request.args.get('sort')=='age_old' %}selected{% endif %}>Age (Older first)</option>
 <option value="{{ url_for('dashboard', sort='icd_date') }}" {% if request.args.get('sort')=='icd_date' %}selected{% endif %}>ICD Date (Earliest first)</option>
@@ -215,3 +215,4 @@ document.addEventListener("click", async (e) => {
 </script>
 </body>
 </html>
+
