@@ -190,67 +190,118 @@ def create_app():
     def home():
         return render_template("homePage.html")
 
+    def get_filtered_patients(search_query="", age_query="", icd_query="", include_meta=False):
+        patients = []
+        docs = db.collection("Patient").stream()
+
+        for doc in docs:
+            data = doc.to_dict()
+
+            dob = data.get("DOB")
+            age = None
+            dob_date = None
+
+            # -------- AGE CALCULATION --------
+            if dob:
+                try:
+                    dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                    age = date.today().year - dob_date.year
+                    if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
+                        age -= 1
+                except:
+                    age = None
+                    dob_date = None
+
+            # -------- NAME / ID FILTER --------
+            name_match = True
+            if search_query:
+                full_name = data.get("FullName", "").lower()
+                patient_id = doc.id.lower()
+                name_parts = full_name.split()
+                name_match = any(part.startswith(search_query) for part in name_parts) or patient_id.startswith(search_query)
+
+            # -------- AGE FILTER --------
+            age_match = True
+            if age_query:
+                try:
+                    if age is None or int(age_query) != age:
+                        age_match = False
+                except:
+                    age_match = False
+
+            # -------- ICD PREFIX FILTER --------
+            icd_match = True
+            icd_date = None
+
+            if icd_query or include_meta:
+                # Only do the expensive notes scan if needed (icd search OR icd_date sorting)
+                icd_match = False if icd_query else True
+
+                notes = db.collection("Patient").document(doc.id).collection("MedicalNote").stream()
+                for n in notes:
+                    icds = n.reference.collection("ICDcode").stream()
+                    for icd_doc in icds:
+                        d = icd_doc.to_dict()
+
+                        # For filtering by ICD prefix
+                        if icd_query:
+                            for code in d.get("Adjusted", []):
+                                if str(code).upper().startswith(icd_query):
+                                    icd_match = True
+                                    break
+
+                        # For sorting by earliest ICD date
+                        if include_meta:
+                            adjusted_at = d.get("AdjustedAt")
+                            if adjusted_at:
+                                if isinstance(adjusted_at, datetime):
+                                    icd_date = min(icd_date, adjusted_at) if icd_date else adjusted_at
+                                else:
+                                    try:
+                                        dt = datetime.strptime(adjusted_at, "%Y-%m-%d %H:%M:%S")
+                                        icd_date = min(icd_date, dt) if icd_date else dt
+                                    except:
+                                        pass
+
+                        if icd_query and icd_match and not include_meta:
+                            break
+                    if icd_query and icd_match and not include_meta:
+                        break
+
+            if name_match and age_match and icd_match:
+                patient_obj = {
+                    "ID": doc.id,
+                    "FullName": data.get("FullName", "Unknown"),
+                    "Age": age
+                }
+
+                if include_meta:
+                    patient_obj["DOB_Date"] = dob_date
+                    patient_obj["ICDDate"] = icd_date
+
+                patients.append(patient_obj)
+
+        return patients
 
     # DASHBOARD
     @app.route("/dashboard")
     def dashboard():
-        if 'user_id' not in session: # Block access if not logged in
+        if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
-        
-        sort = request.args.get("sort", "")
-        patients = [] # Store all patients to display
-        try:
-            docs = db.collection("Patient").stream()
-            for doc in docs:
-                data = doc.to_dict()
-                dob = data.get("DOB")
-                age = None
-                dob_date = None
-                 # --- CALCULATE AGE ---
-                if dob:
-                    try:
-                        dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
-                        age = date.today().year - dob_date.year
-                        if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
-                            age -= 1
 
-                        if age < 0 or age > 130:
-                            age = None
-                            dob_date = None
-                    except:
-                        age = None
-                        dob_date = None
-                    # --- GET EARLIEST ICD DATE ---
-                    icd_date = None
-                    try:
-                        notes = db.collection("Patient").document(doc.id).collection("MedicalNote").stream()
-                        for n in notes:
-                            icds = n.reference.collection("ICDcode").stream()
-                            for icd in icds:
-                                adjusted_at = icd.to_dict().get("AdjustedAt")
-                                if adjusted_at:
-                                    if isinstance(adjusted_at, datetime):
-                                         # normalize to naive UTC
-                                        dt = adjusted_at
-                                        if dt.tzinfo is not None:
-                                            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-                                        icd_date = min(icd_date, adjusted_at) if icd_date else adjusted_at
-                                    else:
-                                        try:
-                                            dt = datetime.strptime(adjusted_at, "%Y-%m-%d %H:%M:%S")
-                                            icd_date = min(icd_date, dt) if icd_date else dt
-                                        except:
-                                            pass
-                    except Exception as e:
-                        icd_date = None
-                    patients.append({
-                        "ID": doc.id,
-                        "FullName": data.get("FullName", "Unknown"),
-                        "Age": age,
-                        "DOB_Date": dob_date,
-                        "ICDDate": icd_date
-                    })
+        search_query = request.args.get("search", "").strip().lower()
+        age_query = request.args.get("age", "").strip()
+        icd_query = request.args.get("icd", "").strip().upper()
+
+        try:
+            patients = get_filtered_patients(
+                search_query=search_query,
+                age_query=age_query,
+                icd_query=icd_query,
+                include_meta=False   
+            )
         except Exception as e:
+            patients = []
             flash(f"Error fetching patients: {e}", "danger")
 
         # message after adding patient
@@ -260,40 +311,68 @@ def create_app():
             "added": "Patient added successfully!"
         }.get(msg_key, "")
 
-        # -------- SORTING LOGIC --------
+
+        return render_template("dashboard.html", patients=patients, msg_text=msg_text)
+
+    @app.route("/api/patients")
+    def api_patients():
+        if 'user_id' not in session:
+            return jsonify([])
+
+        search_query = request.args.get("search", "").strip().lower()
+        age_query = request.args.get("age", "").strip()
+        icd_query = request.args.get("icd", "").strip().upper()
+        sort = request.args.get("sort", "").strip()
+
+        # Need meta for these sorts
+        include_meta = sort in ("age_young", "age_old", "icd_date")
+
+        patients = get_filtered_patients(
+            search_query=search_query,
+            age_query=age_query,
+            icd_query=icd_query,
+            include_meta=include_meta
+        )
+
+        # ---- SORTING ----
         if sort == "name_asc":
-            patients.sort(key=lambda x: x["FullName"].lower())
+            patients.sort(key=lambda x: (x.get("FullName") or "").lower())
 
         elif sort == "name_desc":
-            patients.sort(key=lambda x: x["FullName"].lower(), reverse=True)
+            patients.sort(key=lambda x: (x.get("FullName") or "").lower(), reverse=True)
 
         elif sort == "age_young":
             patients.sort(key=lambda x: (
-            x["Age"] is None,                         # unknown age last
-            x["Age"] if x["Age"] is not None else 0,  # younger age first
-            x["DOB_Date"] is None,                   # missing DOB last
-            -(x["DOB_Date"].toordinal() if x["DOB_Date"] else 0)     
-        ))
+                x.get("Age") is None,
+                x.get("Age") if x.get("Age") is not None else 0,
+                x.get("DOB_Date") is None,
+                -(x["DOB_Date"].toordinal() if x.get("DOB_Date") else 0)
+            ))
 
         elif sort == "age_old":
             patients.sort(key=lambda x: (
-            x["Age"] is None,
-            -(x["Age"] if x["Age"] is not None else 0),
-            x["DOB_Date"] is None,
-            (x["DOB_Date"].toordinal() if x["DOB_Date"] else 0)
-        ))
+                x.get("Age") is None,
+                -(x.get("Age") if x.get("Age") is not None else 0),
+                x.get("DOB_Date") is None,
+                (x["DOB_Date"].toordinal() if x.get("DOB_Date") else 0)
+            ))
 
         elif sort == "icd_date":
             def normalize(dt):
                 if dt is None:
                     return datetime.max
-                if dt.tzinfo is not None:
+                if getattr(dt, "tzinfo", None) is not None:
                     return dt.astimezone(timezone.utc).replace(tzinfo=None)
                 return dt
-            patients.sort(key=lambda x: normalize(x["ICDDate"]))
 
-        return render_template("dashboard.html", patients=patients, msg_text=msg_text)
+            patients.sort(key=lambda x: normalize(x.get("ICDDate")))
 
+        # IMPORTANT: remove non-JSON-safe fields before returning
+        for p in patients:
+            p.pop("DOB_Date", None)
+            p.pop("ICDDate", None)
+
+        return jsonify(patients)
 
     # ADD PATIENT
     @app.route("/add_patient", methods=["GET", "POST"])
@@ -367,11 +446,11 @@ def create_app():
         return render_template("add_patient.html", errors=errors)
 
 
-    # MEDICAL NOTES + ICD (save)
+    # MEDICAL NOTES + ICD CODES
     @app.route("/MedicalNotes", methods=["GET", "POST"])
     def add_note():
-        if "user_id" not in session:
-            return redirect(url_for("Authentication.login"))
+        if 'user_id' not in session:
+            return redirect(url_for('Authentication.login'))
 
         if request.method == "GET":
             pid = request.args.get("pid", "").strip()
@@ -380,7 +459,7 @@ def create_app():
             if pid:
                 doc = db.collection("Patient").document(pid).get()
                 if doc.exists:
-                    patient_name = (doc.to_dict() or {}).get("FullName", "")
+                    patient_name = doc.to_dict().get("FullName", "")
 
             return render_template(
                 "MedicalNotes.html",
@@ -391,20 +470,19 @@ def create_app():
             )
 
         try:
-            data = request.get_json(silent=True) or request.form or {}
-            pid = (data.get("pid") or "").strip()
-            note_text = (data.get("note_text") or "").strip()
+            data = request.get_json() or request.form
+            pid = data.get("pid")
+            note_text = data.get("note_text")
             icd_codes = data.get("icd_codes", [])
-            predicted_codes = data.get("predicted_codes", [])
-
-            if not pid or not note_text or not icd_codes:
-                return jsonify({"status": "error", "message": "Missing fields"}), 400
+            
 
             patient_ref = db.collection("Patient").document(pid)
 
+            # Generate unique Note ID
             note_id = "note_id_" + uuid.uuid4().hex[:8]
             note_ref = patient_ref.collection("MedicalNote").document(note_id)
 
+             # saving the note
             note_ref.set({
                 "NoteID": note_id,
                 "Note": note_text,
@@ -412,13 +490,15 @@ def create_app():
                 "CreatedBy": session.get("user_id")
             })
 
+            # Generate unique icd ID
             icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-            icd_ref = note_ref.collection("ICDcode").document(icd_id)
+            icd_doc_ref = note_ref.collection("ICDcode").document(icd_id)
 
-            icd_ref.set({
+             # saving the icd code
+            icd_doc_ref.set({
                 "ICD_ID": icd_id,
-                "Adjusted": [c["Code"] for c in icd_codes],
-                "Predicted": predicted_codes,
+                "Adjusted": [c["Code"] for c in icd_codes],   # ARRAY of ALL selected codes
+                "Predicted": [],
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
@@ -774,6 +854,279 @@ def create_app():
 
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
+@app.route("/edit_patient/<pid>", methods=["GET", "POST"])
+    def edit_patient(pid):
+        if 'user_id' not in session:
+            return redirect(url_for('Authentication.login'))
+
+        pid = (pid or "").strip()
+        if not re.fullmatch(r"\d{10}", pid):
+            return redirect(url_for("dashboard"))
+
+        patient_ref = db.collection("Patient").document(pid)
+        patient_doc = patient_ref.get()
+
+        if not patient_doc.exists:
+            return redirect(url_for("dashboard"))
+
+        errors = []
+
+        def load_patient_bundle():
+            pdata = patient_doc.to_dict() or {}
+
+            # patient form fields
+            form = {
+                "full_name": pdata.get("FullName", ""),
+                "dob": pdata.get("DOB", ""),
+                "gender": pdata.get("Gender", ""),
+                "phone": pdata.get("Phone", ""),
+                "email": pdata.get("Email", ""),
+                "address": pdata.get("Address", ""),
+                "blood_type": pdata.get("BloodType", ""),
+            }
+
+            # notes
+            notes_out = []
+            # Newest first
+            notes = patient_ref.collection("MedicalNote").order_by("CreatedDate", direction="DESCENDING").stream()
+
+            for n in notes:
+                nd = n.to_dict() or {}
+                note_id = n.id
+                note_text = nd.get("Note", "")
+
+                created = nd.get("CreatedDate")
+                created_str = ""
+                try:
+                    if isinstance(created, datetime):
+                        created_str = created.strftime("%Y-%m-%d %H:%M")
+                    elif created:
+                        created_str = str(created)
+                except:
+                    created_str = ""
+
+                # fetch first ICD doc under this note (your app creates 1)
+                icd_id = ""
+                icd_codes = []
+                try:
+                    icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
+                    if icd_docs:
+                        icd_id = icd_docs[0].id
+                        icd_data = icd_docs[0].to_dict() or {}
+                        icd_codes = icd_data.get("Adjusted", []) or []
+                except:
+                    pass
+
+                # comma string
+                icd_codes_str = ", ".join([str(x).strip().upper() for x in icd_codes if str(x).strip()])
+
+                notes_out.append({
+                    "note_id": note_id,
+                    "note_text": note_text,
+                    "created_date": created_str,
+                    "icd_id": icd_id,
+                    "icd_codes_str": icd_codes_str
+                })
+
+           
+            return form, notes_out
+
+        # -------- GET --------
+        if request.method == "GET":
+            form, notes_out = load_patient_bundle()
+            return render_template("edit_patient.html", pid=pid, form=form, notes=notes_out, errors=[])
+
+        # -------- POST (save updates) --------
+        full_name = request.form.get("full_name", "").strip()
+        dob = request.form.get("dob", "").strip()
+        gender = request.form.get("gender", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        address = request.form.get("address", "").strip()
+        blood = request.form.get("blood_type", "").strip()
+
+        # basic validations (similar to add_patient)
+        if not all([full_name, dob, gender, phone, email, address, blood]):
+            errors.append("All fields are required.")
+
+        if phone and not re.fullmatch(r'^05\d{8}$', phone):
+            errors.append("Phone must start with 05 and be 10 digits.")
+
+        if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+            errors.append("Invalid email format.")
+
+        if dob:
+            try:
+                dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                if dob_date > date.today():
+                    errors.append("Date of Birth cannot be in the future.")
+
+                age = date.today().year - dob_date.year
+                if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
+                    age -= 1
+                if age > 130:
+                    errors.append("Age cannot exceed 130 years.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        # notes arrays
+        note_ids = request.form.getlist("note_id[]")
+        note_texts = request.form.getlist("note_text[]")
+        icd_ids = request.form.getlist("icd_id[]")
+        icd_codes_list = request.form.getlist("icd_codes[]")
+
+        if not errors:
+            try:
+                # 1) update patient doc
+                patient_ref.update({
+                    "FullName": full_name,
+                    "DOB": dob,
+                    "Gender": gender,
+                    "Phone": phone,
+                    "Email": email,
+                    "Address": address,
+                    "BloodType": blood,
+                })
+
+                # 2) update notes + ICDs
+                for i in range(min(len(note_ids), len(note_texts), len(icd_ids), len(icd_codes_list))):
+                    nid = (note_ids[i] or "").strip()
+                    if not nid:
+                        continue
+
+                    # update note text
+                    note_ref = patient_ref.collection("MedicalNote").document(nid)
+                    note_ref.update({
+                        "Note": note_texts[i]
+                    })
+
+                    # parse ICD codes from comma-separated string
+                    raw = icd_codes_list[i] or ""
+                    parsed = []
+                    for part in raw.split(","):
+                        code = part.strip().upper()
+                        if code:
+                            parsed.append(code)
+
+                    icd_id = (icd_ids[i] or "").strip()
+
+                    if icd_id:
+                        # update existing icd doc
+                        note_ref.collection("ICDcode").document(icd_id).update({
+                            "Adjusted": parsed,
+                            "AdjustedBy": session.get("user_id"),
+                            "AdjustedAt": datetime.now()
+                        })
+                    else:
+                        # if missing, create one
+                        new_icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
+                        note_ref.collection("ICDcode").document(new_icd_id).set({
+                            "ICD_ID": new_icd_id,
+                            "Adjusted": parsed,
+                            "Predicted": [],
+                            "AdjustedBy": session.get("user_id"),
+                            "AdjustedAt": datetime.now()
+                        })
+
+                return redirect(url_for("dashboard", msg="patient_updated"))
+
+            except Exception as e:
+                errors.append(str(e))
+
+        # if errors -> re-render with submitted values (so you don't lose edits)
+        form = {
+            "full_name": full_name,
+            "dob": dob,
+            "gender": gender,
+            "phone": phone,
+            "email": email,
+            "address": address,
+            "blood_type": blood,
+        }
+
+        # rebuild notes view from POST so user doesn't lose edits
+        notes_out = []
+        for i in range(max(len(note_ids), len(note_texts), len(icd_ids), len(icd_codes_list))):
+            notes_out.append({
+                "note_id": note_ids[i] if i < len(note_ids) else "",
+                "note_text": note_texts[i] if i < len(note_texts) else "",
+                "created_date": "",
+                "icd_id": icd_ids[i] if i < len(icd_ids) else "",
+                "icd_codes_str": icd_codes_list[i] if i < len(icd_codes_list) else ""
+            })
+
+        return render_template("edit_patient.html", pid=pid, form=form, notes=notes_out, errors=errors)
+
+
+    @app.route("/view_patient/<pid>", methods=["GET"])
+    def view_patient(pid):
+        if 'user_id' not in session:
+            return redirect(url_for('Authentication.login'))
+
+        pid = (pid or "").strip()
+        if not re.fullmatch(r"\d{10}", pid):
+            return redirect(url_for("dashboard"))
+
+        patient_ref = db.collection("Patient").document(pid)
+        patient_doc = patient_ref.get()
+
+        if not patient_doc.exists:
+            return redirect(url_for("dashboard"))
+
+        pdata = patient_doc.to_dict() or {}
+
+        form = {
+            "full_name": pdata.get("FullName", ""),
+            "dob": pdata.get("DOB", ""),
+            "gender": pdata.get("Gender", ""),
+            "phone": pdata.get("Phone", ""),
+            "email": pdata.get("Email", ""),
+            "address": pdata.get("Address", ""),
+            "blood_type": pdata.get("BloodType", ""),
+        }
+
+        notes_out = []
+        # Newest first
+        notes = patient_ref.collection("MedicalNote").order_by("CreatedDate", direction="DESCENDING").stream()
+
+        for n in notes:
+            nd = n.to_dict() or {}
+            note_id = n.id
+            note_text = nd.get("Note", "")
+
+            created = nd.get("CreatedDate")
+            created_str = ""
+            try:
+                if isinstance(created, datetime):
+                    created_str = created.strftime("%Y-%m-%d %H:%M")
+                elif created:
+                    created_str = str(created)
+            except:
+                created_str = ""
+
+            icd_id = ""
+            icd_codes = []
+            try:
+                icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
+                if icd_docs:
+                    icd_id = icd_docs[0].id
+                    icd_data = icd_docs[0].to_dict() or {}
+                    icd_codes = icd_data.get("Adjusted", []) or []
+            except:
+                pass
+
+            icd_codes_str = ", ".join([str(x).strip().upper() for x in icd_codes if str(x).strip()])
+
+            notes_out.append({
+                "note_id": note_id,
+                "note_text": note_text,
+                "created_date": created_str,
+                "icd_id": icd_id,
+                "icd_codes_str": icd_codes_str
+            })
+
+        return render_template("view_patient.html", pid=pid, form=form, notes=notes_out, errors=[])
+
 
 
     # ✅ Predict Top-5 ICD
@@ -838,3 +1191,4 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5001)
+
