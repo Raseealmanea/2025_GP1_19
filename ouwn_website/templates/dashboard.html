@@ -43,19 +43,31 @@
                     <i class="fa-solid fa-user-plus"></i> Add Patient
                 </button>
             </div>
+
+    <!-- Live Search -->
+<div class="search-bar">
+    <label>Search:</label>
+
+    <input type="text" id="unifiedSearchInput" placeholder="Enter search value">
+
+    <select id="searchType">
+        <option value="name">Name</option>
+        <option value="id">ID</option>
+        <option value="age">Age</option>
+        <option value="icd">ICD Code</option>
+    </select>
+</div>
             <!-- Sort Controls -->
 <div class="sort-bar">
   <label>Sort by:</label>
 
-<select id="sortBy" onchange="location = this.value">
+<select id="sortBy">
   <option value="">-- Select --</option>
-
-<option value="{{ url_for('dashboard', sort='name_asc') }}" {% if request.args.get('sort')=='name_asc' %}selected{% endif %}>First Name (A → Z)</option>
-<option value="{{ url_for('dashboard', sort='name_desc') }}" {% if request.args.get('sort')=='name_desc' %}selected{% endif %}>First Name (Z → A)</option>
-<option value="{{ url_for('dashboard', sort='age_young') }}" {% if request.args.get('sort')=='age_young' %}selected{% endif %}>Age (Younger first)</option>
-<option value="{{ url_for('dashboard', sort='age_old') }}" {% if request.args.get('sort')=='age_old' %}selected{% endif %}>Age (Older first)</option>
-<option value="{{ url_for('dashboard', sort='icd_date') }}" {% if request.args.get('sort')=='icd_date' %}selected{% endif %}>ICD Date (Earliest first)</option>
-
+    <option value="name_asc">Name (A → Z)</option>
+    <option value="name_desc">Name (Z → A)</option>
+    <option value="age_young">Age (Younger first)</option>
+    <option value="age_old">Age (Older first)</option>
+    <option value="icd_date">ICD Date (Earliest first)</option>
 </select>
 </div>
 </div>
@@ -72,7 +84,7 @@
             {% if patients %}
             <div class="patient-grid">
                 {% for p in patients %}
-                <div class="patient-card" id="patient-{{ p.ID }}">
+                <div class="patient-card" id="patient-{{ p.ID }}" data-name="{{ p.FullName }}" data-id="{{ p.ID }}">
                     <div class="card-corner"></div>
                     <div class="card-content">
                         <h3 class="patient-name">{{ p.FullName }}</h3>
@@ -83,6 +95,10 @@
                         <button class="btn-secondary" 
                             onclick="location.href='{{ url_for('add_note') }}?pid={{ p.ID }}'">
                             <i class="fa-solid fa-file-medical"></i> Add Medical Notes
+                        </button>
+                        <button class="btn-secondary"
+                            onclick="location.href='{{ url_for('view_patient', pid=p.ID) }}'">
+                            <i class="fa-solid fa-eye"></i> View Patient
                         </button>
                         <button type="button" class="btn-danger delete-btn" data-id="{{ p.ID }}">
                             <i class="fa-solid fa-trash"></i> Delete Patient
@@ -211,8 +227,190 @@ document.addEventListener("click", async (e) => {
     btn.disabled = false;
   }
 });
+// Live Search + Sort (AJAX) 
+const unifiedSearchInput = document.getElementById("unifiedSearchInput");
+const searchType = document.getElementById("searchType");
+const sortBy = document.getElementById("sortBy");           // <-- IMPORTANT
+const patientGrid = document.querySelector(".patient-grid");
 
+let searchTimeout = null;
+let activeAbortController = null;
+let lastRequestSeq = 0;
+
+const initialGridHTML = patientGrid ? patientGrid.innerHTML : "";
+
+function renderPatients(patients) {
+  if (!patientGrid) return;
+
+  patientGrid.innerHTML = "";
+
+  if (!patients || !patients.length) {
+    patientGrid.innerHTML = `
+      <div class="no-results">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        No matching patients found
+      </div>
+    `;
+    return;
+  }
+
+  patients.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "patient-card";
+    card.id = `patient-${p.ID}`;
+    card.dataset.name = p.FullName;
+    card.dataset.id = p.ID;
+
+    card.innerHTML = `
+  <div class="card-corner"></div>
+  <div class="card-content">
+    <h3 class="patient-name">${p.FullName}</h3>
+    <div class="patient-id-row">
+      <span class="id-label">Patient ID</span>
+      <span class="patient-id">${p.ID}</span>
+    </div>
+
+    <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
+      <i class="fa-solid fa-file-medical"></i> Add Medical Notes
+    </button>
+
+    <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
+      <i class="fa-solid fa-eye"></i> View Patient
+    </button>
+
+    <button type="button" class="btn-danger delete-btn" data-id="${p.ID}">
+      <i class="fa-solid fa-trash"></i> Delete Patient
+    </button>
+  </div>
+`;
+
+    patientGrid.appendChild(card);
+  });
+}
+
+function validateUnifiedInput() {
+  let value = unifiedSearchInput.value;
+  if (!value) return;
+
+  const type = searchType.value;
+
+  if (type === "name") {
+    value = value.replace(/[^a-zA-Z]/g, "");
+  } else if (type === "id") {
+    value = value.replace(/[^0-9]/g, "");
+  } else if (type === "age") {
+    value = value.replace(/[^0-9]/g, "");
+  } else if (type === "icd") {
+    value = value.replace(/[^a-zA-Z0-9]/g, "");
+    if (value.length > 0 && !/^[a-zA-Z]/.test(value)) value = "";
+    value = value.toUpperCase();
+  }
+
+  unifiedSearchInput.value = value;
+}
+
+async function fetchPatients() {
+  if (!patientGrid) return;
+
+  
+  clearTimeout(searchTimeout);
+
+  searchTimeout = setTimeout(async () => {
+    const rawValue = unifiedSearchInput.value;
+    const value = rawValue.trim();
+    const type = searchType.value;
+
+ 
+if (!value) {
+  if (activeAbortController) activeAbortController.abort();
+
+  const sort = sortBy ? (sortBy.value || "") : "";
+
+  if (!sort) {
+    patientGrid.innerHTML = initialGridHTML;
+    return;
+  }
+
+
+  activeAbortController = new AbortController();
+  const thisSeq = ++lastRequestSeq;
+
+  try {
+    const params = new URLSearchParams({ search: "", age: "", icd: "", sort });
+    const res = await fetch(`/api/patients?${params.toString()}`, {
+      signal: activeAbortController.signal
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (thisSeq !== lastRequestSeq) return;
+    if (unifiedSearchInput.value.trim()) return; // user typed again
+
+    renderPatients(data);
+  } catch (err) {
+    if (err && err.name === "AbortError") return;
+    console.error(err);
+  }
+
+  return;
+}
+
+
+    let search = "";
+    let age = "";
+    let icd = "";
+
+    if (type === "name" || type === "id") search = value;
+    if (type === "age") age = value;
+    if (type === "icd") icd = value;
+
+    const sort = sortBy ? (sortBy.value || "") : "";
+
+    if (activeAbortController) activeAbortController.abort();
+    activeAbortController = new AbortController();
+    const thisSeq = ++lastRequestSeq;
+
+    try {
+      const params = new URLSearchParams({ search, age, icd, sort });
+
+      const res = await fetch(`/api/patients?${params.toString()}`, {
+        signal: activeAbortController.signal
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (thisSeq !== lastRequestSeq) return;
+
+      if (!unifiedSearchInput.value.trim()) return;
+
+      renderPatients(data);
+
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      console.error(err);
+    }
+  }, 150);
+}
+
+unifiedSearchInput.addEventListener("input", () => {
+  validateUnifiedInput();
+  fetchPatients();
+});
+
+searchType.addEventListener("change", () => {
+  unifiedSearchInput.value = "";
+  if (activeAbortController) activeAbortController.abort();
+  if (patientGrid) patientGrid.innerHTML = initialGridHTML;
+});
+
+if (sortBy) {
+  sortBy.addEventListener("change", fetchPatients);
+}      
 </script>
 </body>
 </html>
+
 
