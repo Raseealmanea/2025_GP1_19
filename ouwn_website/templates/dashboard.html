@@ -51,11 +51,11 @@
     <input type="text" id="unifiedSearchInput" placeholder="Enter search value">
 
     <select id="searchType">
-        <option value="name">Name</option>
-        <option value="id">ID</option>
-        <option value="age">Age</option>
-        <option value="icd">ICD Code</option>
-    </select>
+  <option value="name">Name</option>
+  <option value="id">ID</option>
+  <option value="yob">Year of Birth</option>
+  <option value="icd">ICD Code</option>
+</select>
 </div>
             <!-- Sort Controls -->
 <div class="sort-bar">
@@ -63,11 +63,11 @@
 
 <select id="sortBy">
   <option value="">-- Select --</option>
-    <option value="name_asc">Name (A → Z)</option>
-    <option value="name_desc">Name (Z → A)</option>
-    <option value="age_young">Age (Younger first)</option>
-    <option value="age_old">Age (Older first)</option>
-    <option value="icd_date">ICD Date (Earliest first)</option>
+  <option value="name_asc">First Name (A → Z)</option>
+  <option value="name_desc">First Name (Z → A)</option>
+  <option value="age_young">Age (Younger first)</option>
+  <option value="age_old">Age (Older first)</option>
+  <option value="icd_date">ICD Date (Earliest first)</option>
 </select>
 </div>
 </div>
@@ -298,8 +298,9 @@ function validateUnifiedInput() {
     value = value.replace(/[^a-zA-Z]/g, "");
   } else if (type === "id") {
     value = value.replace(/[^0-9]/g, "");
-  } else if (type === "age") {
-    value = value.replace(/[^0-9]/g, "");
+  } else if (type === "yob") {
+  value = value.replace(/[^0-9]/g, "");
+  if (value.length > 4) value = value.slice(0, 4);
   } else if (type === "icd") {
     value = value.replace(/[^a-zA-Z0-9]/g, "");
     if (value.length > 0 && !/^[a-zA-Z]/.test(value)) value = "";
@@ -336,7 +337,7 @@ if (!value) {
   const thisSeq = ++lastRequestSeq;
 
   try {
-    const params = new URLSearchParams({ search: "", age: "", icd: "", sort });
+    const params = new URLSearchParams({ search: "", yob: "", icd: "", sort });
     const res = await fetch(`/api/patients?${params.toString()}`, {
       signal: activeAbortController.signal
     });
@@ -358,11 +359,11 @@ if (!value) {
 
 
     let search = "";
-    let age = "";
+    let yob = "";
     let icd = "";
 
     if (type === "name" || type === "id") search = value;
-    if (type === "age") age = value;
+    if (type === "yob") yob = value;
     if (type === "icd") icd = value;
 
     const sort = sortBy ? (sortBy.value || "") : "";
@@ -372,7 +373,7 @@ if (!value) {
     const thisSeq = ++lastRequestSeq;
 
     try {
-      const params = new URLSearchParams({ search, age, icd, sort });
+      const params = new URLSearchParams({ search, yob, icd, sort });
 
       const res = await fetch(`/api/patients?${params.toString()}`, {
         signal: activeAbortController.signal
@@ -412,6 +413,4 @@ if (sortBy) {
 </script>
 </body>
 </html>
-
-
 
