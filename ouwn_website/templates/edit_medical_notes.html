@@ -607,7 +607,7 @@ document.addEventListener("click", (e) => {
 
   // Prevent removing the last ICD
   if (codes.length <= 1) {
-    showToast("⚠️ A note must have at least one ICD code.", "error", 5000);
+    showToast("A note must have at least one ICD code.", "error", 5000);
     return;
   }
 
@@ -722,7 +722,7 @@ document.addEventListener("click", (e) => {
       .filter(Boolean);
 
     if (codes.length === 0) {
-      showToast("⚠️ Please select at least one ICD code before saving.", "error", 5000);
+      showToast("Please select at least one ICD code before saving.", "error", 5000);
       return;
     }
 
