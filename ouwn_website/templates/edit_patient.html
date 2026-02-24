@@ -5,6 +5,92 @@
 <title>Edit Patient</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="/static/theme.js" defer></script>
+<style>
+  .actions-bar{
+    display:flex;
+    justify-content:flex-end;   /* buttons on the right */
+    gap:10px;
+    margin-top: 14px;
+  }
+  /* Force invalid fields to stay red even when focused */
+input.is-invalid,
+select.is-invalid,
+textarea.is-invalid{
+  border-color: #dc3545 !important;
+  outline: none !important;
+}
+
+input.is-invalid:focus,
+select.is-invalid:focus,
+textarea.is-invalid:focus,
+input.is-invalid:focus-visible,
+select.is-invalid:focus-visible,
+textarea.is-invalid:focus-visible{
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, .20) !important;
+  outline: none !important;
+}
+
+/* (Optional) valid focus style so green looks consistent too */
+input.is-valid:focus,
+select.is-valid:focus,
+textarea.is-valid:focus{
+  box-shadow: 0 0 0 3px rgba(25, 135, 84, .18) !important;
+  outline: none !important;
+}
+</style>
+
+<style>
+  .confirm-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 18px;
+  }
+  .confirm-overlay.show{ display:flex; }
+
+  .confirm-modal-box{
+    width: min(520px, 96vw);
+    background: #fff;
+    color: #2d004d;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    padding: 18px 18px 14px;
+    transform: translateY(8px);
+    opacity: 0;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .confirm-overlay.show .confirm-modal-box{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .confirm-modal-title{ margin: 0 0 8px; font-size: 18px; }
+  .confirm-modal-text{ margin: 0 0 14px; opacity: .85; line-height: 1.4; }
+
+  .confirm-modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+  }
+
+  .cbtn{
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .cbtn.cancel{ background: #e6e6e6; color: #333; }
+  .cbtn.cancel:hover{ filter: brightness(.97); }
+  .cbtn.confirm{ background: #9975C1; color: #fff; }
+  .cbtn.confirm:hover{ filter: brightness(.95); }
+</style>
 </head>
 
 <body class="form-page medical-note edit-patient">
@@ -12,14 +98,26 @@
 
 <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
   <div class="ouwn-crumbs">
+    <!-- Dashboard -->
     <a class="crumb" href="{{ url_for('dashboard') }}">
       <i class="fa-solid fa-house"></i>
       <span>Dashboard</span>
     </a>
+
     <span class="sep" aria-hidden="true">/</span>
+
+    <!-- View Patient -->
+    <a class="crumb" href="{{ url_for('view_patient', pid=pid) }}">
+      <i class="fa-solid fa-eye"></i>
+      <span>View patient</span>
+    </a>
+
+    <span class="sep" aria-hidden="true">/</span>
+
+    <!-- Current page -->
     <span class="crumb current" aria-current="page">
-      <i class="fa-solid fa-pen-to-square"></i>
-      <span>Edit patient</span>
+      <i class="fa-solid fa-user-pen"></i>
+      <span>Edit patient info</span>
     </span>
   </div>
 </nav>
@@ -27,15 +125,30 @@
 <main class="container card" style="padding:24px 24px 16px;">
   <h1 style="margin-top:0">Edit Patient</h1>
 
+
+<!-- Confirm Modal (same as notes) -->
+<div id="confirmOverlay" class="confirm-overlay" aria-hidden="true">
+  <div class="confirm-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h3 id="confirmTitle" class="confirm-modal-title">Confirm changes</h3>
+    <p id="confirmText" class="confirm-modal-text">Are you sure you want to save?</p>
+
+    <div class="confirm-modal-actions">
+      <button type="button" id="confirmCancelBtn" class="cbtn cancel">Cancel</button>
+      <button type="button" id="confirmOkBtn" class="cbtn confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
   {% if errors %}
   <div class="alert error" style="margin-bottom:16px">
     <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
   </div>
   {% endif %}
 
-  <form method="POST" novalidate>
 
-    <!-- Full Name -->
+<form method="POST" action="{{ url_for('edit_patient', pid=pid) }}" novalidate>
+
+  <!-- Full Name -->
     <div class='row'>
       <label for='full_name'>Full Name<span class='required'>*</span></label>
       <div class='control'>
@@ -123,458 +236,29 @@
       </div>
     </div>
 
-    <hr style="margin:18px 0; opacity:.25">
+    <div class="actions-bar">
+  <button type="submit" id="saveBtn">
+    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+  </button>
 
-    <h2 style="margin:0 0 12px">Medical Notes & ICD Codes</h2>
-
-    {% if notes and notes|length > 0 %}
-      {% for n in notes %}
-        <div class="card" style="padding:14px; margin-bottom:12px;">
-          <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-            <strong>Note</strong>
-            <small style="opacity:.75">
-              {{ n.created_date }}
-            </small>
-          </div>
-
-          <input type="hidden" name="note_id[]" value="{{ n.note_id }}">
-          <input type="hidden" name="icd_id[]" value="{{ n.icd_id }}">
-
-          <div class="row" style="margin-top:10px;">
-            <label>Note Text</label>
-            <div class="control">
-              <textarea name="note_text[]" rows="4" style="width:100%; resize:vertical;">{{ n.note_text }}</textarea>
-            </div>
-          </div>
-
-          <div class="row">
-  <label>Adjusted ICD Codes</label>
-  <div class="control">
-
-    {% set note_i = loop.index0 %}
-
-<div class="selected-codes" id="chips-{{ note_i }}" style="margin-bottom:10px;">
-  {% set codes = (n.icd_codes_str or '') %}
-  {% if codes.strip() %}
-    {% for c in codes.split(',') %}
-      {% set code = c.strip() %}
-      {% if code %}
-        <span class="selected-code" style="display:inline-flex; gap:8px; align-items:center;">
-          <span>{{ code }}</span>
-          <span class="chip-x"
-                style="cursor:pointer;font-weight:bold;"
-                data-note="{{ note_i }}"
-                data-code="{{ code }}">×</span>
-        </span>
-      {% endif %}
-    {% endfor %}
-  {% else %}
-    <small style="opacity:.75;">No ICD codes selected.</small>
-  {% endif %}
+  <button type="button" class="btn-secondary"
+          onclick="location.href='{{ url_for('view_patient', pid=pid) }}'">
+    Cancel
+  </button>
 </div>
-
-<input type="hidden"
-       name="icd_codes[]"
-       id="icd-input-{{ note_i }}"
-       value="{{ n.icd_codes_str }}">
-
-
-                <button type="button"
-                        class="btn-secondary"
-                        onclick="openICDModal({{ note_i }})">
-                <i class="fa-solid fa-magnifying-glass"></i> Browse / Search ICD Codes
-                </button>
-
-                
-            </div>
-            </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p style="opacity:.8">No medical notes found for this patient.</p>
-    {% endif %}
-
-    <div class="row actions" style="display:flex; gap:10px;">
-      <button type="submit">
-        <i class="fa-solid fa-floppy-disk"></i> Save Changes
-      </button>
-      <button type="button" class="btn-secondary" onclick="location.href='{{ url_for('dashboard') }}'">
-        Cancel
-      </button>
-    </div>
 
   </form>
 </main>
 
 
-<div id="icdModal" class="confirm-modal">
-  <div class="confirm-box" style="max-width:900px; width:92%;">
-    <h3 class="confirm-title">
-      <i class="fa-solid fa-list-check"></i>
-      ICD Code Browser
-    </h3>
-
-    <p class="confirm-message" style="margin-top:6px;">
-      Search and select ICD codes for this note.
-    </p>
-
-    <div class="icd-container" style="margin-top:12px;">
-      <div id="icdCategoryBoxes" class="category-boxes"></div>
-
-      <div id="icdSelectedCodesContainer" style="margin-top:10px;"></div>
-
-      <!-- Search -->
-      <div class="search-section">
-        <div class="search-bar">
-          <input type="text" id="icdSearchBox" placeholder="🔍 Search ICD code or keyword...">
-        </div>
-        <button type="button" class="search-btn" id="icdSearchBtn">Search</button>
-      </div>
-
-      <div id="icdResults" style="margin-top: 10px;"></div>
-    </div>
-
-    <div class="confirm-actions" style="margin-top:14px;">
-      <button type="button" id="icdCancelBtn" class="btn-secondary">Cancel</button>
-      <button type="button" id="icdSaveBtn" class="btn-primary">Save ICD Codes</button>
-    </div>
-  </div>
-</div>
 
 <script>
-
-document.addEventListener("click", (e) => {
-  const x = e.target.closest(".chip-x");
-  if (!x) return;
-
-  const noteIndex = Number(x.dataset.note);
-  const code = (x.dataset.code || "").trim();
-
-  removeChipCode(noteIndex, code);
-});
-
-let activeNoteIndex = null;
-
-let selectedCodes = [];       
-let currentCategory = "All";
-let currentICDResults = [];
-let renderIndex = 0;
-const PAGE_SIZE = 40;
-
-function normalizeCodeListFromHidden(hiddenValue) {
-  const codes = (hiddenValue || "")
-    .split(",")
-    .map(s => s.trim().toUpperCase())
-    .filter(Boolean);
-
-  return codes.map(c => ({ Code: c, Description: "" }));
-}
-
-function selectedCodesToCommaString() {
-  return selectedCodes.map(c => (c.Code || "").trim().toUpperCase()).filter(Boolean).join(", ");
-}
-
-function updateModalSelectedUI() {
-  const container = document.getElementById("icdSelectedCodesContainer");
-  container.innerHTML = "";
-
-  if (!selectedCodes.length) {
-    container.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
-    return;
-  }
-
-  selectedCodes.forEach((c) => {
-    const div = document.createElement("div");
-    div.className = "selected-code";
-    div.style.display = "inline-flex";
-    div.style.alignItems = "center";
-    div.style.gap = "8px";
-    div.style.margin = "4px 6px 0 0";
-    div.innerHTML = `
-      ${c.Code}
-      <span style="cursor:pointer;font-weight:bold;" title="Remove">×</span>
-    `;
-    div.querySelector("span").onclick = () => removeModalCode(c.Code);
-    container.appendChild(div);
-  });
-}
-
-function removeModalCode(code) {
-  code = (code || "").trim().toUpperCase();
-  selectedCodes = selectedCodes.filter((c) => (c.Code || "").trim().toUpperCase() !== code);
-
-  const cb = document.querySelector(`#icdResults input[data-code='${code}']`);
-  if (cb) cb.checked = false;
-
-  updateModalSelectedUI();
-}
-
-
-async function initModalCategories() {
-  const container = document.getElementById("icdCategoryBoxes");
-  container.innerHTML = "";
-
-  try {
-    const res = await fetch("/icd_categories");
-    const categories = await res.json();
-
-    categories.forEach((cat) => {
-      const box = document.createElement("div");
-      box.className = "category-box";
-      box.textContent = cat;
-
-      box.onclick = () => {
-        document.querySelectorAll("#icdCategoryBoxes .category-box")
-          .forEach(b => b.classList.remove("active"));
-
-        box.classList.add("active");
-        currentCategory = cat;
-        loadByCategory(cat);
-      };
-
-      container.appendChild(box);
-    });
-
-    const first = Array.from(container.querySelectorAll(".category-box"))
-      .find(b => (b.textContent || "").toLowerCase() === "all") || container.querySelector(".category-box");
-
-    if (first) first.click();
-
-  } catch (e) {
-    container.innerHTML = `<small style="opacity:.75;">Failed to load categories.</small>`;
-  }
-}
-
-async function loadByCategory(category) {
-  try {
-    const res = await fetch(`/icd_by_category/${encodeURIComponent(category)}`);
-    const data = await res.json();
-    displayICDResults(data);
-  } catch {
-    displayICDResults([]);
-  }
-}
-
-async function searchICD() {
-  const term = document.getElementById("icdSearchBox").value.trim();
-  if (!term) return;
-
-  try {
-    const res = await fetch(`/search_icd?term=${encodeURIComponent(term)}&category=${encodeURIComponent(currentCategory)}`);
-    const data = await res.json();
-    displayICDResults(data);
-  } catch {
-    displayICDResults([]);
-  }
-}
-
-window.addEventListener("load", () => {
-  const box = document.getElementById("icdSearchBox");
-  if (!box) return;
-
-  box.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();   // prevents the edit form from submitting
-      searchICD();          // triggers ICD search
-    }
-  });
-});
-
-
-
-function displayICDResults(data) {
-  const resultsDiv = document.getElementById("icdResults");
-  resultsDiv.innerHTML = "";
-
-  currentICDResults = data || [];
-  renderIndex = 0;
-
-  if (!currentICDResults.length) {
-    resultsDiv.innerHTML = "<p>No results found.</p>";
-    return;
-  }
-
-  renderNextChunk();
-}
-
-function renderNextChunk() {
-  const resultsDiv = document.getElementById("icdResults");
-
-  if (!currentICDResults.length) return;
-  if (renderIndex >= currentICDResults.length) return;
-
-  const end = Math.min(renderIndex + PAGE_SIZE, currentICDResults.length);
-
-  for (let i = renderIndex; i < end; i++) {
-    const item = currentICDResults[i];
-    const div = document.createElement("div");
-    div.className = "result-item";
-
-    const isChecked = selectedCodes.some((c) => c.Code === item.Code) ? "checked" : "";
-
-    div.innerHTML = `
-      <input type="checkbox" data-code="${item.Code}" data-desc="${item.Description}" ${isChecked}>
-      <strong style="margin-left:5px;">${item.Code}</strong> - ${item.Description}
-    `;
-
-    resultsDiv.appendChild(div);
-  }
-
-  renderIndex = end;
-}
-
-function handleModalScroll(e) {
-  const el = e.target;
-  if (!el) return;
-
-  const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 120;
-  if (nearBottom) renderNextChunk();
-}
-
-window.openICDModal = async function(noteIndex) {
-  activeNoteIndex = noteIndex;
-
-  const hidden = document.getElementById(`icd-input-${noteIndex}`);
-  selectedCodes = normalizeCodeListFromHidden(hidden ? hidden.value : "");
-
-  updateModalSelectedUI();
-
-  const modal = document.getElementById("icdModal");
-  modal.classList.add("show");
-
-  await initModalCategories();
-
-  document.getElementById("icdSearchBox").value = "";
-  document.getElementById("icdResults").innerHTML = "";
-
-  const results = document.getElementById("icdResults");
-  results.style.maxHeight = "320px";
-  results.style.overflow = "auto";
-  results.removeEventListener("scroll", handleModalScroll);
-  results.addEventListener("scroll", handleModalScroll);
-};
-
-function closeICDModal() {
-  const modal = document.getElementById("icdModal");
-  modal.classList.remove("show");
-  activeNoteIndex = null;
-}
-
-document.getElementById("icdResults").addEventListener("change", (e) => {
-  if (!e.target.matches("input[type='checkbox']")) return;
-
-  const code = (e.target.dataset.code || "").trim().toUpperCase();
-  const desc = e.target.dataset.desc || "";
-
-  if (e.target.checked) {
-    if (!selectedCodes.find((c) => c.Code === code)) {
-      selectedCodes.push({ Code: code, Description: desc });
-    }
-  } else {
-    selectedCodes = selectedCodes.filter((c) => c.Code !== code);
-  }
-
-  updateModalSelectedUI();
-});
-
-document.getElementById("icdSearchBtn").addEventListener("click", searchICD);
-document.getElementById("icdCancelBtn").addEventListener("click", closeICDModal);
-
-document.getElementById("icdSaveBtn").addEventListener("click", () => {
-  if (activeNoteIndex === null) return;
-
-  const hidden = document.getElementById(`icd-input-${activeNoteIndex}`);
-  const chips = document.getElementById(`chips-${activeNoteIndex}`);
-
-  const comma = selectedCodesToCommaString();
-
-  if (hidden) hidden.value = comma;
-
-  if (chips) {
-    chips.innerHTML = "";
-    if (!comma) {
-      chips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
-    } else {
-      comma.split(",").map(s => s.trim()).filter(Boolean).forEach(code => {
-        const span = document.createElement("span");
-        span.className = "selected-code";
-        span.style.display = "inline-flex";
-        span.style.gap = "8px";
-        span.style.alignItems = "center";
-        span.innerHTML = `
-        <span>${code}</span>
-        <span class="chip-x"
-              style="cursor:pointer;font-weight:bold;"
-              data-note="${activeNoteIndex}"
-              data-code="${code}">×</span>
-      `;
-        chips.appendChild(span);
-      });
-    }
-  }
-
-  closeICDModal();
-});
-
-document.getElementById("icdModal").addEventListener("click", (e) => {
-  if (e.target.id === "icdModal") closeICDModal();
-});
-
-document.addEventListener("keydown", (e) => {
-  const modal = document.getElementById("icdModal");
-  if (e.key === "Escape" && modal.classList.contains("show")) {
-    closeICDModal();
-  }
-});
-
-window.removeChipCode = function(noteIndex, code) {
-  code = (code || "").trim().toUpperCase();
-  if (!code) return;
-
-  const hidden = document.getElementById(`icd-input-${noteIndex}`);
-  const chips = document.getElementById(`chips-${noteIndex}`);
-  if (!hidden || !chips) return;
-
-  let codes = (hidden.value || "")
-    .split(",")
-    .map(s => s.trim().toUpperCase())
-    .filter(Boolean);
-
-  codes = codes.filter(c => c !== code);
-
-  const newValue = codes.join(", ");
-  hidden.value = newValue;
-
-  chips.innerHTML = "";
-  if (!codes.length) {
-    chips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
-    return;
-  }
-
-  codes.forEach(c => {
-    const span = document.createElement("span");
-    span.className = "selected-code";
-    span.style.display = "inline-flex";
-    span.style.gap = "8px";
-    span.style.alignItems = "center";
-    span.innerHTML = `
-    <span>${c}</span>
-    <span class="chip-x"
-          style="cursor:pointer;font-weight:bold;"
-          data-note="${noteIndex}"
-          data-code="${c}">×</span>
-  `;
-    chips.appendChild(span);
-  });
-};
-
-const touched = new Set();     
-let forceShowErrors = false;    
-
+const touched = new Set();
+let forceShowErrors = false;
+let showValidStyles = true;
 
 function setValidity(input, ok, msg){
   const fb = input.closest('.control')?.querySelector('.feedback');
-
   const shouldShow = forceShowErrors || touched.has(input.id);
 
   if (!shouldShow) {
@@ -586,8 +270,8 @@ function setValidity(input, ok, msg){
     return;
   }
 
-  input.classList.toggle('is-valid', ok);
-  input.classList.toggle('is-invalid', !ok);
+input.classList.toggle('is-valid', ok && showValidStyles);
+input.classList.toggle('is-invalid', !ok);
 
   if (fb) {
     fb.textContent = ok ? "" : (msg || "");
@@ -669,21 +353,99 @@ function scrollToFirstInvalid(formEl) {
   }
 }
 
+/* ---------- Confirm modal ---------- */
+function confirmModal(message){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("confirmOverlay");
+    const text = document.getElementById("confirmText");
+    const okBtn = document.getElementById("confirmOkBtn");
+    const cancelBtn = document.getElementById("confirmCancelBtn");
+
+    if (!overlay || !text || !okBtn || !cancelBtn) return resolve(true);
+
+    text.textContent = message;
+
+    const cleanup = () => {
+      overlay.classList.remove("show");
+      overlay.setAttribute("aria-hidden", "true");
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      overlay.onclick = null;
+    };
+
+    okBtn.onclick = () => { cleanup(); resolve(true); };
+    cancelBtn.onclick = () => { cleanup(); resolve(false); };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) { cleanup(); resolve(false); }
+    };
+
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        document.removeEventListener("keydown", onKey);
+        cleanup();
+        resolve(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.add("show");
+  });
+}
+
+/* ---------- Change detection ---------- */
+let originalPatient = null;
+
+function snapPatient(){
+  const get = (id) => (document.getElementById(id)?.value || "").trim();
+  originalPatient = {
+    full_name: get("full_name"),
+    dob: get("dob"),
+    gender: get("gender"),
+    phone: get("phone"),
+    email: get("email").toLowerCase(),     // normalize
+    address: get("address"),
+    blood_type: get("blood_type")
+  };
+}
+
+function isPatientChanged(){
+  if (!originalPatient) return true;
+  const get = (id) => (document.getElementById(id)?.value || "").trim();
+  const now = {
+    full_name: get("full_name"),
+    dob: get("dob"),
+    gender: get("gender"),
+    phone: get("phone"),
+    email: get("email").toLowerCase(),
+    address: get("address"),
+    blood_type: get("blood_type")
+  };
+
+  return Object.keys(originalPatient).some(k => (now[k] || "") !== (originalPatient[k] || ""));
+}
+
+
+
+/* ---------- Your existing validation code stays ---------- */
+/* (keep your touched/checkDob/checkPhone/checkEmail/checkRequired/scrollToFirstInvalid exactly as you have them) */
 
 window.addEventListener("load", () => {
-  
-
   const form = document.querySelector("form");
   if (!form) return;
 
-  form.addEventListener("submit", (e) => {
-  forceShowErrors = true;
-  let ok = true; 
- 
+  snapPatient(); // ✅ snapshot initial values
+
+  form.addEventListener("submit", async (e) => {
+    forceShowErrors = true;
+    showValidStyles = false;
+
+    let ok = true;
     const fullName = document.getElementById("full_name");
-    const gender = document.getElementById("gender");
-    const address = document.getElementById("address");
-    const blood = document.getElementById("blood_type");
+    const gender   = document.getElementById("gender");
+    const address  = document.getElementById("address");
+    const blood    = document.getElementById("blood_type");
 
     ok = checkRequired(fullName, "Full Name is required.") && ok;
     ok = checkDob() && ok;
@@ -693,36 +455,41 @@ window.addEventListener("load", () => {
     ok = checkRequired(address, "Address is required.") && ok;
     ok = checkRequired(blood, "Blood Type is required.") && ok;
 
- 
-    const noteAreas = form.querySelectorAll("textarea[name='note_text[]']");
-    noteAreas.forEach((ta) => {
-      if (!ta.value.trim()) {
-        ta.classList.add("is-invalid");
-        ok = false;
-      } else {
-        ta.classList.remove("is-invalid");
-      }
-    });
-
-   
-    const icdHidden = form.querySelectorAll("input[name='icd_codes[]']");
-    icdHidden.forEach((inp, idx) => {
-      const hasOne = (inp.value || "").split(",").map(s => s.trim()).filter(Boolean).length > 0;
-      if (!hasOne) ok = false;
-
-      const chips = document.getElementById(`chips-${idx}`);
-      if (chips) chips.classList.toggle("is-invalid", !hasOne);
-    });
-
-
     if (!ok) {
       e.preventDefault();
-
-      
-      alert("Please enter valid information in highlighted fields before saving.");
-
       scrollToFirstInvalid(form);
+      return;
     }
+
+    e.preventDefault();
+
+    const changed = isPatientChanged();
+    if (!changed) {
+      if (form.dataset.submitting === "1") return;
+      form.dataset.submitting = "1";
+
+      const action = new URL(form.action, window.location.origin);
+      
+
+      HTMLFormElement.prototype.submit.call(form);
+      return;
+    }
+
+    const okConfirm = await confirmModal("Save changes to patient info?");
+    if (!okConfirm) return;
+
+    if (form.dataset.submitting === "1") return;
+    form.dataset.submitting = "1";
+
+    const btn = document.getElementById("saveBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+    }
+
+    const action = new URL(form.action, window.location.origin);
+
+    HTMLFormElement.prototype.submit.call(form);
   });
 });
 </script>
