@@ -45,6 +45,9 @@
             </div>
 
     <!-- Live Search -->
+     <button id="toggleViewBtn" class="btn-primary" title="Toggle View">
+    <i class="fa-solid fa-table-cells-large"></i>
+</button>
 <div class="search-bar">
     <label>Search:</label>
 
@@ -113,6 +116,37 @@
         </div>
         
     </main>
+<div id="horizontalView" style="display: none; overflow-x: auto;">
+  <table class="patient-table">
+    <thead>
+      <tr>
+        <th>Full Name</th>
+        <th>Patient ID</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in patients %}
+      <tr id="patient-row-{{ p.ID }}">
+        <td>{{ p.FullName }}</td>
+        <td>{{ p.ID }}</td>
+        <td>
+          <button class="btn-secondary" onclick="location.href='{{ url_for('add_note') }}?pid={{ p.ID }}'">
+            <i class="fa-solid fa-file-medical"></i>
+          </button>
+          <button class="btn-secondary" onclick="location.href='{{ url_for('view_patient', pid=p.ID) }}'">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+          <button class="btn-danger delete-btn" data-id="{{ p.ID }}">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+    
     <!-- Custom Confirm Modal -->
 <div id="confirmModal" class="confirm-modal">
   <div class="confirm-box">
@@ -240,52 +274,81 @@ let lastRequestSeq = 0;
 const initialGridHTML = patientGrid ? patientGrid.innerHTML : "";
 
 function renderPatients(patients) {
-  if (!patientGrid) return;
+    if (!patientGrid) return;
 
-  patientGrid.innerHTML = "";
+    patientGrid.innerHTML = "";
 
-  if (!patients || !patients.length) {
-    patientGrid.innerHTML = `
-      <div class="no-results">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        No matching patients found
-      </div>
-    `;
-    return;
-  }
+    if (!patients || !patients.length) {
+        patientGrid.innerHTML = `<div class="no-results"><i class="fa-solid fa-magnifying-glass"></i>No matching patients found</div>`;
+        return;
+    }
 
-  patients.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "patient-card";
-    card.id = `patient-${p.ID}`;
-    card.dataset.name = p.FullName;
-    card.dataset.id = p.ID;
+    patients.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "patient-card";
+        card.id = `patient-${p.ID}`;
+        card.dataset.name = p.FullName;
+        card.dataset.id = p.ID;
 
-    card.innerHTML = `
-  <div class="card-corner"></div>
-  <div class="card-content">
-    <h3 class="patient-name">${p.FullName}</h3>
-    <div class="patient-id-row">
-      <span class="id-label">Patient ID</span>
-      <span class="patient-id">${p.ID}</span>
-    </div>
+        card.innerHTML = `
+          <div class="card-corner"></div>
+          <div class="card-content">
+            <h3 class="patient-name">${p.FullName}</h3>
+            <div class="patient-id-row">
+              <span class="id-label">Patient ID</span>
+              <span class="patient-id">${p.ID}</span>
+            </div>
+            <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
+              <i class="fa-solid fa-file-medical"></i> Add Medical Notes
+            </button>
+            <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
+              <i class="fa-solid fa-eye"></i> View Patient
+            </button>
+            <button type="button" class="btn-danger delete-btn" data-id="${p.ID}">
+              <i class="fa-solid fa-trash"></i> Delete Patient
+            </button>
+          </div>
+        `;
 
-    <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
-      <i class="fa-solid fa-file-medical"></i> Add Medical Notes
-    </button>
+        patientGrid.appendChild(card);
+    });
+}
 
-    <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
-      <i class="fa-solid fa-eye"></i> View Patient
-    </button>
+function renderPatientsTable(patients) {
+    const tableBody = document.querySelector("#horizontalView tbody");
+    if (!tableBody) return;
 
-    <button type="button" class="btn-danger delete-btn" data-id="${p.ID}">
-      <i class="fa-solid fa-trash"></i> Delete Patient
-    </button>
-  </div>
-`;
+    tableBody.innerHTML = "";
 
-    patientGrid.appendChild(card);
-  });
+    if (!patients || !patients.length) {
+        tableBody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align:center;">No matching patients found</td>
+        </tr>
+        `;
+        return;
+    }
+
+    patients.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.id = `patient-row-${p.ID}`;
+        tr.innerHTML = `
+            <td>${p.FullName}</td>
+            <td>${p.ID}</td>
+            <td>
+                <button class="btn-secondary" onclick="location.href='/add_note?pid=${p.ID}'">
+                    <i class="fa-solid fa-file-medical"></i>
+                </button>
+                <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+                <button class="btn-danger delete-btn" data-id="${p.ID}">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
 }
 
 function validateUnifiedInput() {
@@ -311,89 +374,43 @@ function validateUnifiedInput() {
 }
 
 async function fetchPatients() {
-  if (!patientGrid) return;
+    clearTimeout(searchTimeout);
 
-  
-  clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(async () => {
+        const value = unifiedSearchInput.value.trim();
+        const type = searchType.value;
+        const sort = sortBy ? sortBy.value || "" : "";
 
-  searchTimeout = setTimeout(async () => {
-    const rawValue = unifiedSearchInput.value;
-    const value = rawValue.trim();
-    const type = searchType.value;
+        // Abort previous request
+        if (activeAbortController) activeAbortController.abort();
+        activeAbortController = new AbortController();
+        const thisSeq = ++lastRequestSeq;
 
- 
-if (!value) {
-  if (activeAbortController) activeAbortController.abort();
+        try {
+            let search = "";
+let yob = "";
+let icd = "";
 
-  const sort = sortBy ? (sortBy.value || "") : "";
+if (type === "name" || type === "id") search = value;
+if (type === "yob") yob = value;
+if (type === "icd") icd = value;
 
-  if (!sort) {
-    patientGrid.innerHTML = initialGridHTML;
-    return;
-  }
+const params = new URLSearchParams({ search, yob, icd, sort });
+            const res = await fetch(`/api/patients?${params.toString()}`, {
+                signal: activeAbortController.signal
+            });
+            if (!res.ok) return;
+            const data = await res.json();
 
+            if (thisSeq !== lastRequestSeq) return;
 
-  activeAbortController = new AbortController();
-  const thisSeq = ++lastRequestSeq;
-
-  try {
-    const params = new URLSearchParams({ search: "", yob: "", icd: "", sort });
-    const res = await fetch(`/api/patients?${params.toString()}`, {
-      signal: activeAbortController.signal
-    });
-
-    if (!res.ok) return;
-    const data = await res.json();
-
-    if (thisSeq !== lastRequestSeq) return;
-    if (unifiedSearchInput.value.trim()) return; // user typed again
-
-    renderPatients(data);
-  } catch (err) {
-    if (err && err.name === "AbortError") return;
-    console.error(err);
-  }
-
-  return;
-}
-
-
-    let search = "";
-    let yob = "";
-    let icd = "";
-
-    if (type === "name" || type === "id") search = value;
-    if (type === "yob") yob = value;
-    if (type === "icd") icd = value;
-
-    const sort = sortBy ? (sortBy.value || "") : "";
-
-    if (activeAbortController) activeAbortController.abort();
-    activeAbortController = new AbortController();
-    const thisSeq = ++lastRequestSeq;
-
-    try {
-      const params = new URLSearchParams({ search, yob, icd, sort });
-
-      const res = await fetch(`/api/patients?${params.toString()}`, {
-        signal: activeAbortController.signal
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      if (thisSeq !== lastRequestSeq) return;
-
-      if (!unifiedSearchInput.value.trim()) return;
-
-      renderPatients(data);
-
-    } catch (err) {
-      if (err && err.name === "AbortError") return;
-      console.error(err);
-    }
-  }, 150);
+            renderPatients(data);       // card view
+            renderPatientsTable(data);  // table view
+        } catch (err) {
+            if (err && err.name === "AbortError") return;
+            console.error(err);
+        }
+    }, 150);
 }
 
 unifiedSearchInput.addEventListener("input", () => {
@@ -409,8 +426,40 @@ searchType.addEventListener("change", () => {
 
 if (sortBy) {
   sortBy.addEventListener("change", fetchPatients);
-}      
+}     
+const toggleBtn = document.getElementById("toggleViewBtn");
+const cardView = document.querySelector(".patient-grid");
+const horizontalView = document.getElementById("horizontalView");
+
+const iconCard = "fa-table-cells-large";   // card icon
+const iconHorizontal = "fa-arrows-left-right"; // horizontal view icon
+
+// Load previous preference
+if (localStorage.getItem("patientView") === "horizontal") {
+    cardView.style.display = "none";
+    horizontalView.style.display = "block";
+    toggleBtn.querySelector("i").className = `fa-solid ${iconCard}`;
+} else {
+    cardView.style.display = "grid";
+    horizontalView.style.display = "none";
+    toggleBtn.querySelector("i").className = `fa-solid ${iconHorizontal}`;
+}
+
+toggleBtn.addEventListener("click", () => {
+    const isCardVisible = cardView.style.display !== "none";
+
+    if (isCardVisible) {
+        cardView.style.display = "none";
+        horizontalView.style.display = "block";
+        toggleBtn.querySelector("i").className = `fa-solid ${iconCard}`;
+        localStorage.setItem("patientView", "horizontal");
+    } else {
+        cardView.style.display = "grid";
+        horizontalView.style.display = "none";
+        toggleBtn.querySelector("i").className = `fa-solid ${iconHorizontal}`;
+        localStorage.setItem("patientView", "card");
+    }
+});
 </script>
 </body>
 </html>
-
