@@ -1219,4 +1219,230 @@ input, select, textarea, button {
 }
 
 
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 10px;
+    font-size: 14px;
+    color: #444;
+    padding-top: 15px;
+}
+
+
+.search-bar input {
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-right: 1px solid #d1c4e9;                 
+    border-radius: 12px 0 0 12px;       
+    flex: 1;
+    min-width: 180px;
+    font-size: 14px;
+}
+
+
+.search-bar select {
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-left: 1px solid #d1c4e9;
+    border-radius: 0 12px 12px 0;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%239975C1' height='20' viewBox='0 0 20 20' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M5.5 7l4.5 5 4.5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+
+    padding-right: 35px;
+}
+
+.search-bar input:focus,
+.search-bar select:focus {
+    outline: none;
+    border-color: #9975C1;
+    box-shadow: 0 0 0 2px rgba(153, 117, 193, 0.15);
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: #777;
+    font-size: 16px;
+}
+
+.no-results i {
+    font-size: 32px;
+    color: #9975C1;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.selected-codes.is-invalid {
+  border: 1px solid #dc3545;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+
+.selected-code {
+  background-color: #f3e8ff;   
+  color: #6b21a8;              
+  border: 1px solid #e9d5ff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+
+.selected-code:hover {
+  background-color: #ede2ff;
+}
+
+
+/* =========================
+   Dark Mode (Theme System)
+   - Uses <html data-theme="dark|light">
+   - Toggle is injected by /static/theme.js
+   ========================= */
+
+:root {
+  --bg: #ffffff;
+  --bg-soft: #F4F1FB;
+  --bg-gradient: linear-gradient(135deg, #F4F1FB, #E1D4F2);
+  --text: #2d004d;
+  --text-muted: rgba(45, 0, 77, 0.75);
+  --surface: rgba(255, 255, 255, 0.75);
+  --surface-strong: #ffffff;
+  --border: rgba(0, 0, 0, 0.12);
+  --shadow: rgba(0, 0, 0, 0.12);
+  --primary: #9975C1;
+  --primary-hover: #7f5ea5;
+  --link: #2d004d;
+  --link-hover: #9975C1;
+}
+
+html[data-theme="dark"] {
+  --bg: #0f1115;
+  --bg-soft: #141823;
+  --bg-gradient: linear-gradient(135deg, #0f1115, #1a1330);
+  --text: #E9E6F5;
+  --text-muted: rgba(233, 230, 245, 0.75);
+  --surface: rgba(20, 24, 35, 0.8);
+  --surface-strong: #141823;
+  --border: rgba(255, 255, 255, 0.14);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --primary: #B79AE6;
+  --primary-hover: #9E7FD6;
+  --link: #E9E6F5;
+  --link-hover: #B79AE6;
+}
+
+/* Global overrides */
+body {
+  background: var(--bg-gradient) !important;
+  color: var(--text) !important;
+}
+
+a { color: var(--link) !important; }
+a:hover { color: var(--link-hover) !important; }
+
+.btn, button {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+}
+.btn:hover, button:hover {
+  background: var(--primary-hover) !important;
+}
+
+/* Header & dropdown */
+header.header {
+  background: var(--surface) !important;
+  box-shadow: 0 2px 10px var(--shadow) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.dropdown {
+  background: var(--surface-strong) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 25px var(--shadow) !important;
+}
+
+.dropdown a {
+  color: var(--text) !important;
+}
+
+.dropdown a:hover {
+  background: rgba(153, 117, 193, 0.18) !important;
+}
+
+/* Cards / containers (best-effort: covers most panels) */
+.card,
+.container,
+.form-container,
+.content,
+.box,
+.section,
+.patient-card,
+.profile-card,
+.dashboard-container,
+.table-container,
+.banner {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 10px 25px var(--shadow) !important;
+}
+
+/* Inputs */
+input, textarea, select {
+  background: var(--surface-strong) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Tables */
+table, th, td {
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+th {
+  background: rgba(153, 117, 193, 0.18) !important;
+}
+
+/* Floating toggle button */
+.theme-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-strong) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 12px 28px var(--shadow) !important;
+  padding: 0 !important;
+  z-index: 9999;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.theme-toggle__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
 
