@@ -1445,4 +1445,66 @@ th {
   line-height: 1;
 }
 
+.patient-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    font-size: 0.95rem;
+    margin-top: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.patient-table th, 
+.patient-table td {
+    border: 1px solid #ddd;
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.patient-table th {
+    background-color: #f4f6f8;
+    font-weight: 600;
+    color: #333;
+}
+
+.patient-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.patient-table tr:hover {
+    background-color: #eef4fc;
+}
+
+.patient-table td button {
+    display: inline-block;   /* prevents full cell width */
+    width: auto;             /* ignore table cell stretch */
+    padding: 4px 8px;        /* adjust size */
+    font-size: 0.9rem;       /* smaller text */
+    margin-right: 0.3rem;    /* spacing between buttons */
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.patient-table td button.btn-danger:hover {
+    background-color: #c0392b;
+    color: #fff;
+}
+
+.patient-table td button.btn-secondary:hover {
+    background-color: #5dade2;
+    color: #fff;
+}
+
+/* Optional: compact table in horizontal view */
+#horizontalView {
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+
+/* Toggle button spacing */
+#toggleViewBtn {
+    margin-top: 1.5rem; /* move it down slightly */
+}
 
