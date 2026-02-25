@@ -8,6 +8,8 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from firebase.Initialization import db
 
 import whisper
+import hashlib
+ 
 
 # ----------------------------
 # ML imports (ICD model)
@@ -1376,5 +1378,6 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5001)
+
 
 
