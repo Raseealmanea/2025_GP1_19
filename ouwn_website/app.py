@@ -77,13 +77,31 @@ class PLMICD(nn.Module):
         logits = self.attention(hidden_output)
         return logits
 
+import re
 
 def preprocess_note_text_exact(text: str) -> str:
+    """
+    Approximation of JoakimEdin prepare_mimiciv.py preprocessing:
+    - lower=True
+    - remove_digits=True
+    - mullenbach-style cleanup (keep letters, spaces; normalize separators)
+    """
     if text is None:
         return ""
+
     s = str(text).lower()
-    s = re.sub(r"[^A-Za-z0-9]+", " ", s)
-    s = re.sub(r"(\s\d+)+\s", " ", s)
+
+    # ✅ IMPORTANT (matches training): remove digits
+    s = re.sub(r"\d+", " ", s)
+
+    # mullenbach-ish: normalize common separators to spaces
+    s = s.replace("\n", " ").replace("\t", " ")
+
+    # remove weird characters but keep letters and basic punctuation if you want:
+    # (this is safer than deleting everything not A-Za-z0-9)
+    s = re.sub(r"[^a-z\s\.,;:\-\(\)\/]+", " ", s)
+
+    # collapse spaces
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
@@ -101,18 +119,61 @@ NUM_LABELS = None
 _model_loaded = False
 
 
-def ensure_model_loaded(app: Flask):
-    """Loads your ICD model once. Uses app.root_path so paths never break."""
+def _file_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def _extract_threshold_from_ckpt(ckpt: Dict[str, Any]) -> float:
+    """
+    Tries multiple key names for threshold.
+    If missing/unusable -> returns default 0.5 (NO crash).
+    """
+    thr_obj = ckpt.get("best_threshold", ckpt.get("threshold", ckpt.get("BEST_THRESHOLD", None)))
+
+    if thr_obj is None:
+        print("⚠️ No threshold found in checkpoint. Using default 0.5. Keys:", list(ckpt.keys()))
+        return 0.5
+
+    if isinstance(thr_obj, dict):
+        if "all" in thr_obj:
+            thr_obj = thr_obj["all"]
+        else:
+            # pick first convertible value
+            for v in thr_obj.values():
+                try:
+                    thr_obj = float(v)
+                    break
+                except Exception:
+                    continue
+
+    try:
+        return float(thr_obj)
+    except Exception:
+        print("⚠️ Threshold found but not float-castable. Using default 0.5. Value:", thr_obj)
+        return 0.5
+
+def ensure_model_loaded(app: Flask) -> None:
+    """
+    Lazy-load ICD model from:
+      app.root_path/models/best_model.pt
+      app.root_path/models/target2index.json
+      app.root_path/models/RoBERTa-base-PM-M3-Voc-hf/
+    """
     global model, tokenizer, BEST_THRESHOLD, index2target, NUM_LABELS, _model_loaded
+
     if _model_loaded:
         return
 
     models_dir = os.path.join(app.root_path, "models")
-
     MODEL_PATH = os.path.join(models_dir, "RoBERTa-base-PM-M3-Voc-hf")
     CKPT_PATH  = os.path.join(models_dir, "best_model.pt")
     T2I_PATH   = os.path.join(models_dir, "target2index.json")
 
+    if not os.path.exists(models_dir):
+        raise FileNotFoundError(f"Missing models directory: {models_dir}")
     if not os.path.exists(T2I_PATH):
         raise FileNotFoundError(f"Missing target2index.json at: {T2I_PATH}")
     if not os.path.exists(CKPT_PATH):
@@ -120,34 +181,44 @@ def ensure_model_loaded(app: Flask):
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Missing model folder at: {MODEL_PATH}")
 
+    print("✅ Loading checkpoint from:", CKPT_PATH)
+    print("✅ best_model.pt sha256:", _file_sha256(CKPT_PATH))
+
     with open(T2I_PATH, "r", encoding="utf-8") as f:
         target2index = json.load(f)
 
-    index2target = {v: k for k, v in target2index.items()}
-    NUM_LABELS = len(target2index)
+    index2target = {int(v): str(k) for k, v in target2index.items()}
+    NUM_LABELS = len(index2target)
 
     ckpt = torch.load(CKPT_PATH, map_location=DEVICE)
+    print("ℹ️ CKPT keys:", list(ckpt.keys()))
 
-    BEST_THRESHOLD = float(
-        ckpt.get("best_threshold",
-        ckpt.get("threshold",
-        ckpt.get("BEST_THRESHOLD", 0.5)))
-    )
+    BEST_THRESHOLD = _extract_threshold_from_ckpt(ckpt)
+    print("✅ Threshold used:", BEST_THRESHOLD)
 
-    # some checkpoints store weights under "model"
-    if "model" not in ckpt:
-        raise KeyError("Checkpoint missing key 'model'. Check your best_model.pt structure.")
+    if "model" in ckpt:
+        state = ckpt["model"]
+    elif "state_dict" in ckpt:
+        state = ckpt["state_dict"]
+    else:
+        raise KeyError(f"Checkpoint missing 'model'/'state_dict'. Keys: {list(ckpt.keys())}")
 
-    state = normalize_state(ckpt["model"])
+    state = normalize_state(state)
 
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+    tokenizer_local = AutoTokenizer.from_pretrained(MODEL_PATH)
+    model_obj = PLMICD(num_classes=NUM_LABELS, model_path=MODEL_PATH).to(DEVICE)
 
-    model = PLMICD(num_classes=NUM_LABELS, model_path=MODEL_PATH).to(DEVICE)
-    model.load_state_dict(state, strict=False)
-    model.eval()
+    missing, unexpected = model_obj.load_state_dict(state, strict=False)
+    print("ℹ️ load_state_dict missing keys:", len(missing))
+    print("ℹ️ load_state_dict unexpected keys:", len(unexpected))
 
+    model_obj.eval()
+
+    tokenizer = tokenizer_local
+    model = model_obj
     _model_loaded = True
-    print("✅ ICD model loaded successfully. threshold =", BEST_THRESHOLD)
+
+    print("✅ ICD model loaded successfully FROM best_model.pt")
 
 
 # ---------------------------------------------------------
@@ -1234,7 +1305,8 @@ def create_app():
         )
 
 
-    # ✅ Predict Top-5 ICD
+
+    # ✅ Predict
     @app.post("/predict_icd")
     def predict_icd_route():
         if "user_id" not in session:
@@ -1246,6 +1318,13 @@ def create_app():
         raw_text = (data.get("note_text") or "").strip()
         if not raw_text:
             return jsonify({"status": "error", "message": "Empty note"}), 400
+
+        # ✅ k from UI (default 20, max 50)
+        try:
+            k = int(data.get("top_k", 20))
+        except Exception:
+            k = 20
+        k = max(1, min(k, 50))
 
         clean_text = preprocess_note_text_exact(raw_text)
         if not clean_text:
@@ -1273,22 +1352,23 @@ def create_app():
             logits = model(input_ids=input_ids, attention_mask=attention_mask)
             probs = torch.sigmoid(logits)[0].detach().cpu()
 
-        vals, inds = torch.topk(probs, k=5)
-        thr = float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5)
+        # ✅ Top-K بدل Top-5
+        vals, inds = torch.topk(probs, k=k)
 
         predictions = []
         for s, i in zip(vals.tolist(), inds.tolist()):
             predictions.append({
                 "Code": index2target.get(i, str(i)),
                 "score": float(s),
-                "above_threshold": bool(float(s) >= thr),
             })
 
         return jsonify({
             "status": "success",
             "predictions": predictions,
-            "threshold": thr,
+            "default_threshold": float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5),
+            "top_k": k
         })
+
 
     return app
 
@@ -1296,3 +1376,4 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5001)
+
