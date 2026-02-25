@@ -453,15 +453,17 @@ function renderPredictions() {
     document.getElementById("saveBothBtn").addEventListener("click", async () => {
       const pid = document.getElementById("pid").value.trim();
       const note = document.getElementById("note_text").value.trim();
-
-      if (!pid) return showMessage("Patient ID is missing!", "error");
-      if (!note) return showMessage("Please enter a medical note!", "error");
-      if (selectedCodes.length === 0) return showMessage("Please select at least one ICD code!", "error");
-
-      // ✅ ONLY checked AI predictions are saved
+      
+        // ✅ ONLY checked AI predictions are saved
       const checkedPredicted = Array.from(
         document.querySelectorAll("#predictionsList input.pred-check:checked")
       ).map(cb => cb.value);
+
+      if (!pid) return showMessage("Patient ID is missing!", "error");
+      if (!note) return showMessage("Please enter a medical note!", "error");
+      if (selectedCodes.length === 0 && checkedPredicted.length==0) return showMessage("Please select at least one ICD code!", "error");
+
+    
 
       try {
         const response = await fetch("/MedicalNotes", {
