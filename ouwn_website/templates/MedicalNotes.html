@@ -15,7 +15,7 @@
 
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
-    <script src="/static/theme.js" defer></script>
+
   <style>
     /* ===== Predictions Card ===== */
     .pred-card {
@@ -166,15 +166,27 @@
   </form>
 
   <!-- =========================
-       AI Predictions (Top-5)
+       AI Predictions
        ========================= -->
-  <button type="button" id="predictBtn">✨ Predict Top-5</button>
+  <button type="button" id="predictBtn">✨ Predict</button>
+
+  <div id="thrRow" class="pred-card hidden" style="margin-top:10px;">
+  <div class="pred-header" style="margin-bottom:0;">
+    <div>
+      <div class="pred-title">Threshold Filter</div>
+      <div class="pred-sub">Filters display only (does not auto-save)</div>
+    </div>
+    <div class="pred-sub"><span id="thrValue">0.50</span></div>
+  </div>
+
+  <input id="thrInput" type="range" min="0" max="1" step="0.01" value="0.50" style="width:100%;">
+</div>
 
   <div id="predictionsCard" class="pred-card hidden">
     <div class="pred-header">
       <div>
         <div class="pred-title">AI Suggestions</div>
-        <div class="pred-sub">Uncheck wrong codes before saving</div>
+        <div class="pred-sub">Check correct codes to save it</div>
       </div>
       <!-- Optional: show threshold from backend -->
       <div id="predThreshold" class="pred-sub" style="text-align:right;"></div>
@@ -226,66 +238,74 @@
   // =========================
   // AI Predictions (Top-5)
   // =========================
-  function showPredictions(preds, threshold = null) {
-    const card = document.getElementById("predictionsCard");
-    const list = document.getElementById("predictionsList");
-    const thrEl = document.getElementById("predThreshold");
+  let lastPredictions = []; // نخزن آخر نتائج عشان نفلتر بدون إعادة طلب السيرفر
 
-    card.classList.remove("hidden");
-    list.innerHTML = "";
+function showPredictions(preds) {
+  lastPredictions = preds || [];
 
-    if (threshold !== null && threshold !== undefined) {
-      thrEl.textContent = `Threshold: ${Number(threshold).toFixed(2)}`;
-    } else {
-      thrEl.textContent = "";
-    }
+  document.getElementById("predictionsCard").classList.remove("hidden");
+  document.getElementById("thrRow").classList.remove("hidden");
 
-    (preds || []).forEach((p) => {
-      const pct = Math.round((p.score || 0) * 100);
+  renderPredictions(); // يرسم حسب threshold الحالي
+}
 
-      const row = document.createElement("div");
-      row.className = "pred-item";
+function renderPredictions() {
+  const list = document.getElementById("predictionsList");
+  const thr = Number(document.getElementById("thrInput").value || 0.5);
+  document.getElementById("thrValue").textContent = thr.toFixed(2);
 
-      row.innerHTML = `
-        <div class="pred-left">
-          <input class="pred-check" type="checkbox" checked value="${p.Code}">
-          <div class="pred-code">${p.Code}</div>
-        </div>
+  list.innerHTML = "";
 
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div class="pred-score">${pct}%</div>
-          <div class="pred-bar"><div style="width:${pct}%;"></div></div>
-        </div>
-      `;
+  
+  const filtered = lastPredictions.filter(p => (p.score || 0) >= thr);
 
-      list.appendChild(row);
-    });
+  if (!filtered.length) {
+    list.innerHTML = `<div class="pred-sub">No codes above this threshold.</div>`;
+    return;
   }
 
-  async function predictTop5() {
-    const noteRaw = document.getElementById("note_text").value.trim();
-    if (!noteRaw) return alert("Write a note first");
+  filtered.forEach((p) => {
+    const pct = Math.round((p.score || 0) * 100);
 
-    try {
-      const res = await fetch("/predict_icd", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note_text: noteRaw })
-      });
+    const row = document.createElement("div");
+    row.className = "pred-item";
 
-      const data = await res.json().catch(() => ({}));
+    row.innerHTML = `
+      <div class="pred-left">
+        <!-- ✅ unchecked by default -->
+        <input class="pred-check" type="checkbox" value="${p.Code}">
+        <div class="pred-code">${p.Code}</div>
+      </div>
 
-      if (!res.ok || data.status !== "success") {
-        alert(data.message || "Prediction failed");
-        return;
-      }
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="pred-score">${pct}%</div>
+        <div class="pred-bar"><div style="width:${pct}%;"></div></div>
+      </div>
+    `;
 
-      showPredictions(data.predictions, data.threshold);
+    list.appendChild(row);
+  });
+}
 
-    } catch (err) {
-      alert("Server error: " + err.message);
-    }
+  async function predictTop20() {
+  const noteRaw = document.getElementById("note_text").value.trim();
+  if (!noteRaw) return alert("Write a note first");
+
+  const res = await fetch("/predict_icd", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note_text: noteRaw , top_k: 20  })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.status !== "success") {
+    alert(data.message || "Prediction failed");
+    return;
   }
+
+  showPredictions(data.predictions);
+}
+  document.getElementById("thrInput").addEventListener("input", renderPredictions);
 
   // =========================
   // ICD Browser (your existing logic)
@@ -602,11 +622,10 @@
 
     window.addEventListener("scroll", handlePageScroll);
 
-    document.getElementById("predictBtn")?.addEventListener("click", predictTop5);
+    document.getElementById("predictBtn")?.addEventListener("click", predictTop20);
     document.getElementById("micBtn")?.addEventListener("click", toggleMic);
   });
 </script>
 
 </body>
 </html>
-
