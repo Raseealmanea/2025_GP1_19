@@ -38,16 +38,25 @@
     {% endif %}
     
 <div class="list-actions">
-<div class="header-buttons">
-                <button class="btn-primary" onclick="location.href='{{ url_for('add_patient') }}'">
-                    <i class="fa-solid fa-user-plus"></i> Add Patient
-                </button>
-            </div>
+<div class="list-actions">
+    <div class="header-buttons">
+        <button class="btn-primary add-patient-btn" onclick="location.href='{{ url_for('add_patient') }}'">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Add Patient</span>
+        </button>
+    </div>
+</div>
 
     <!-- Live Search -->
-     <button id="toggleViewBtn" class="btn-primary" title="Toggle View">
-    <i class="fa-solid fa-table-cells-large"></i>
-</button>
+ <div class="view-toggle">
+    <button id="gridView" class="btn-primary" title="Grid View">
+        <i class="fa-solid fa-table-cells"></i>
+    </button>
+
+    <button id="listView" class="btn-primary" title="List View">
+        <i class="fa-solid fa-list"></i>
+    </button>
+</div>
 <div class="search-bar">
     <label>Search:</label>
 
@@ -427,38 +436,61 @@ searchType.addEventListener("change", () => {
 if (sortBy) {
   sortBy.addEventListener("change", fetchPatients);
 }     
-const toggleBtn = document.getElementById("toggleViewBtn");
+const gridBtn = document.getElementById("gridView");
+const listBtn = document.getElementById("listView");
+
 const cardView = document.querySelector(".patient-grid");
 const horizontalView = document.getElementById("horizontalView");
-
-const iconCard = "fa-table-cells-large";   // card icon
-const iconHorizontal = "fa-arrows-left-right"; // horizontal view icon
 
 // Load previous preference
 if (localStorage.getItem("patientView") === "horizontal") {
     cardView.style.display = "none";
     horizontalView.style.display = "block";
-    toggleBtn.querySelector("i").className = `fa-solid ${iconCard}`;
 } else {
     cardView.style.display = "grid";
     horizontalView.style.display = "none";
-    toggleBtn.querySelector("i").className = `fa-solid ${iconHorizontal}`;
 }
 
-toggleBtn.addEventListener("click", () => {
-    const isCardVisible = cardView.style.display !== "none";
+// Grid view button
+gridBtn.addEventListener("click", () => {
+    cardView.style.display = "grid";
+    horizontalView.style.display = "none";
+    localStorage.setItem("patientView", "card");
+});
 
-    if (isCardVisible) {
-        cardView.style.display = "none";
-        horizontalView.style.display = "block";
-        toggleBtn.querySelector("i").className = `fa-solid ${iconCard}`;
-        localStorage.setItem("patientView", "horizontal");
+// List view button
+listBtn.addEventListener("click", () => {
+    cardView.style.display = "none";
+    horizontalView.style.display = "block";
+    localStorage.setItem("patientView", "horizontal");
+});
+function updateActiveButton() {
+    const view = localStorage.getItem("patientView") || "card";
+    if (view === "card") {
+        gridBtn.classList.add("active");
+        listBtn.classList.remove("active");
     } else {
-        cardView.style.display = "grid";
-        horizontalView.style.display = "none";
-        toggleBtn.querySelector("i").className = `fa-solid ${iconHorizontal}`;
-        localStorage.setItem("patientView", "card");
+        gridBtn.classList.remove("active");
+        listBtn.classList.add("active");
     }
+}
+
+// Initial active state
+updateActiveButton();
+
+// Update active state on click
+gridBtn.addEventListener("click", () => {
+    cardView.style.display = "grid";
+    horizontalView.style.display = "none";
+    localStorage.setItem("patientView", "card");
+    updateActiveButton();
+});
+
+listBtn.addEventListener("click", () => {
+    cardView.style.display = "none";
+    horizontalView.style.display = "block";
+    localStorage.setItem("patientView", "horizontal");
+    updateActiveButton();
 });
 </script>
 </body>
