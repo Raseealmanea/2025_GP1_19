@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
+from typing import Dict, Any
 
 import os, json, re, uuid
 from datetime import datetime, date, timezone
@@ -626,7 +627,7 @@ def create_app():
         else:
             # Return only selected category
             for cat in app.icd_data:
-                if cat["Category"].lower() == category.lower():
+                if cat["Category"].strip().lower() == category.strip().lower():
                     results = cat.get("Codes", [])
                     break
 
@@ -650,8 +651,16 @@ def create_app():
             if category and category != "all" and cat["Category"].lower() != category:
                 continue
             for code in cat["Codes"]:
-                if term in code["Code"].lower() or term in code["Description"].lower():
-                    results.append(code)
+                if (
+                    term in code["Code"].lower()
+                    or term in code["Description"].lower()
+                    or term in cat["Category"].lower()   # ✅ search category
+                ):
+                    results.append({
+                        "Code": code["Code"],
+                        "Description": code["Description"],
+                        "Category": cat["Category"]      # ✅ send category to frontend
+                    })
 
         # remove duplicates
         unique = {item["Code"]: item for item in results}
@@ -1378,6 +1387,5 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5001)
-
 
 
