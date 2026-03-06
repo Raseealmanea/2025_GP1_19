@@ -149,10 +149,13 @@
       <input name="pid" id="pid" type="text" value="{{ prefilled_pid }}" readonly style="background-color: lightgray;">
     </div>
 
-    <div class="row">
-      <label for="note_text">Note <span class="required">*</span></label>
-      <textarea name="note_text" id="note_text" rows="6">{{ note_text }}</textarea>
-    </div>
+   <div class="row" style="position:relative;">
+  <label for="note_text">Note <span class="required">*</span></label>
+
+  <textarea name="note_text" id="note_text" rows="6">{{ note_text }}</textarea>
+
+  <div id="noteSuggestBox" class="note-suggest-box"></div>
+</div>
 
     <!-- mic row -->
     <div class="row">
@@ -207,12 +210,16 @@
     <div id="selectedCodesContainer"></div>
 
     <div class="search-section">
-      <div class="search-bar">
-        <input type="text" id="searchBox" placeholder="🔍 Search ICD code or keyword...">
-      </div>
-      <button type="button" class="search-btn" onclick="searchICD()">Search</button>
-    </div>
+  <div class="search-bar" style="position:relative;">
+    <input type="text" id="searchBox"
+           placeholder="🔍 Search ICD code or keyword..."
+           autocomplete="off">
+
+    <div id="autocompleteBox" class="autocomplete-box"></div>
   </div>
+
+  <button type="button" class="search-btn" onclick="searchICD()">Search</button>
+</div>
 
   <div id="results" style="margin-top: 10px;"></div>
 
@@ -623,12 +630,139 @@ function renderPredictions() {
     initCategories();
     initResultsListener();
     initSaveButton();
+    initAutocomplete();
+    initNoteWordSuggestion();
 
     window.addEventListener("scroll", handlePageScroll);
 
     document.getElementById("predictBtn")?.addEventListener("click", predictTop20);
     document.getElementById("micBtn")?.addEventListener("click", toggleMic);
+    
   });
+  // =========================
+// ICD Autocomplete (Live Search)
+// =========================
+function initAutocomplete() {
+  const input = document.getElementById("searchBox");
+  const box = document.getElementById("autocompleteBox");
+
+  input.addEventListener("input", async function () {
+    const term = this.value.trim();
+
+    if (term.length < 2) {
+      box.style.display = "none";
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/search_icd?term=${encodeURIComponent(term)}&category=${encodeURIComponent(currentCategory)}`
+      );
+
+      const data = await res.json();
+      box.innerHTML = "";
+
+      if (!data.length) {
+        box.style.display = "none";
+        return;
+      }
+
+      data.slice(0, 10).forEach(item => {
+        const div = document.createElement("div");
+        div.className = "autocomplete-item";
+        div.textContent = `${item.Code} - ${item.Description}`;
+
+        div.addEventListener("click", function () {
+          input.value = item.Code;
+          box.style.display = "none";
+          displayICDResults([item]); // optional: show full result
+        });
+
+        box.appendChild(div);
+      });
+
+      box.style.display = "block";
+
+    } catch (err) {
+      console.error("Autocomplete error:", err);
+    }
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".search-bar")) {
+      box.style.display = "none";
+    }
+  });
+}
+// ==========================
+// Medical Word Suggestion (Textarea)
+// ==========================
+function initNoteWordSuggestion() {
+
+  const textarea = document.getElementById("note_text");
+  const box = document.getElementById("noteSuggestBox");
+
+  textarea.addEventListener("input", async function () {
+
+    const text = textarea.value;
+    const words = text.split(/\s+/);
+    const lastWord = words[words.length - 1];
+
+    if (lastWord.length < 3) {
+      box.style.display = "none";
+      return;
+    }
+
+    try {
+      const res = await fetch(`/search_icd?term=${encodeURIComponent(lastWord)}`);
+      const data = await res.json();
+
+      if (!data.length) {
+        box.style.display = "none";
+        return;
+      }
+
+      // extract only unique descriptions (medical terms)
+    const uniqueWords = [...new Set(
+      data.flatMap(d => 
+        d.Description
+          .toLowerCase()
+          .replace(/[,()]/g,"")
+          .split(/\s+/)
+          .filter(word => word.startsWith(lastWord.toLowerCase()))
+                )
+       )];
+      box.innerHTML = "";
+
+      uniqueWords.slice(0,5).forEach(word => {
+        const div = document.createElement("div");
+        div.className = "note-suggest-item";
+        div.textContent = word;
+
+        div.addEventListener("click", function () {
+          words[words.length - 1] = word;
+          textarea.value = words.join(" ") + " ";
+          box.style.display = "none";
+          textarea.focus();
+        });
+
+        box.appendChild(div);
+      });
+
+      box.style.display = "block";
+
+    } catch (err) {
+      console.error("Note suggestion error:", err);
+    }
+
+  });
+
+  document.addEventListener("click", function(e){
+    if (!e.target.closest("#note_text")) {
+      box.style.display = "none";
+    }
+  });
+}
 </script>
 
 </body>
