@@ -1198,6 +1198,7 @@ input, select, textarea, button {
    margin-right: 10px;
    font-size: 14px;
   color: #444;
+  margin-top: 15px; 
 }
 /* Sort dropdown */
 .sort-bar select {
@@ -1473,4 +1474,63 @@ th {
 .row textarea{
   flex: 1;
   min-height: 120px;
+}
+.view-toggle {
+    display: flex;            /* arrange buttons side by side */
+    gap: 6px; 
+     margin-top: 15px;                /* spacing between buttons */
+}
+
+.view-toggle button {
+    width: 36px;              /* small square button */
+    height: 36px;
+    padding: 0;
+    font-size: 16px;          /* icon size */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #e0d7f8; /* light purple for inactive */
+    color: #2d004d;           /* dark text icon for inactive */
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.view-toggle button:hover {
+    background-color: #d1c4f0; /* slightly darker on hover */
+}
+
+.view-toggle button.active {
+    background-color:#9975C1; /* dark purple for active */
+    color: #fff;               /* white icon on active */
+    border-color: #6200ee;
+}
+.add-patient-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;                  /* space between icon and text */
+    padding: 8px 14px;         /* smaller than default */
+    border-radius: 8px;        /* rounded corners */
+    border: none;
+    background-color:#9975C1; /* dark purple */
+    color: #fff;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    margin-top: 15px; 
+}
+
+.add-patient-btn i {
+    font-size: 16px;
+}
+
+.add-patient-btn:hover {
+    background-color: #9070e6e1; /* slightly darker on hover */
+    transform: translateY(-1px);
+}
+
+.add-patient-btn:active {
+    transform: translateY(0);
 }
