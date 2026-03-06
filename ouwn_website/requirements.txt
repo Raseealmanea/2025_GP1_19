@@ -1,8 +1,11 @@
-Flask
+flask
 flask-mail
 firebase-admin
 gunicorn
 python-dotenv
 requests
 itsdangerous
-Werkzeug
+werkzeug
+openai-whisper
+torch
+transformers
