@@ -1534,3 +1534,226 @@ th {
 .add-patient-btn:active {
     transform: translateY(0);
 }
+
+
+/* =========================
+   VIEW PATIENT PAGE
+   ========================= */
+
+.page-view-patient .note-text.display-mode {
+  white-space: normal;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.page-view-patient mark {
+  background: #ffe58a;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.page-view-patient .view-mode .chip-x {
+  display: none !important;
+}
+
+.page-view-patient .page-topbar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.page-view-patient .icon-btn{
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #9975C1;
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter .15s ease, transform .15s ease;
+  box-shadow: 0 4px 10px rgba(153,117,193,.22);
+}
+
+.page-view-patient .icon-btn:hover{
+  filter: brightness(.95);
+  transform: translateY(-1px);
+}
+
+.page-view-patient .actions{
+  width:100%;
+  justify-content:space-between;
+  align-items:center;
+  display:none;
+}
+
+.page-view-patient .edit-enabled .actions{
+  display:flex !important;
+}
+
+.page-view-patient .actions-bar{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:14px;
+}
+
+/* Validation */
+.page-view-patient input.is-invalid,
+.page-view-patient select.is-invalid,
+.page-view-patient textarea.is-invalid{
+  border-color: #dc3545 !important;
+}
+
+.page-view-patient input.is-invalid:focus,
+.page-view-patient select.is-invalid:focus,
+.page-view-patient textarea.is-invalid:focus{
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, .20) !important;
+}
+
+.page-view-patient input.is-valid:focus,
+.page-view-patient select.is-valid:focus,
+.page-view-patient textarea.is-valid:focus{
+  box-shadow: 0 0 0 3px rgba(25, 135, 84, .18) !important;
+}
+
+/* Notes */
+.page-view-patient .note-actions {
+  display:none;
+  gap:10px;
+  margin-top:10px;
+}
+
+.page-view-patient .note-card.editing .note-actions {
+  display:flex;
+}
+
+.page-view-patient .note-card.editing .note-edit-btn {
+  display:none !important;
+}
+
+.page-view-patient .hide-other-edits .note-edit-btn,
+.page-view-patient .hide-other-edits .note-delete-btn {
+  display:none !important;
+}
+
+.page-view-patient .note-icon-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.page-view-patient .note-delete-btn{
+  color:#c0392b;
+}
+
+/* Confirm modal */
+.page-view-patient .confirm-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 18px;
+}
+
+.page-view-patient .confirm-overlay.show{
+  display:flex;
+}
+
+.page-view-patient .confirm-modal-box{
+  width: min(520px, 96vw);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  padding: 18px;
+}
+
+/* Toast */
+.page-view-patient .toast-container{
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.page-view-patient .toast{
+  min-width: 260px;
+  padding: 20px 26px;
+  border-radius: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: 0.25s;
+}
+
+.page-view-patient .toast.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-view-patient .toast.success{
+  background: #e8f9ee;
+  color: #1a7f37;
+}
+
+.page-view-patient .toast.error{
+  background: #dc3545;
+  color: #fff;
+}
+
+/* Selected codes (clean unified version) */
+.page-view-patient .selected-codes{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.page-view-patient .selected-code{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#f3ecfb;
+  color:#2d004d;
+  border:1px solid #d9c8ee;
+  position:relative;
+}
+
+.page-view-patient .selected-code .chip-x{
+  display:none;
+  position:absolute;
+  top:2px;
+  right:4px;
+  font-size:11px;
+  cursor:pointer;
+}
+
+.page-view-patient .note-card.editing .selected-code .chip-x{
+  display:block !important;
+}
+
+/* Hide buttons depending on mode */
+.page-view-patient.info-editing .note-edit-btn,
+.page-view-patient.info-editing .note-delete-btn{
+  display:none !important;
+}
+
+.page-view-patient.note-editing .patient-edit-btn{
+  display:none !important;
+}
+
