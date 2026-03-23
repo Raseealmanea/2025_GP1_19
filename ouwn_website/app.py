@@ -529,12 +529,11 @@ def create_app():
         return render_template("add_patient.html", errors=errors)
 
 
-
-    # MEDICAL NOTES + ICD (save)
+    # MEDICAL NOTES + ICD CODES
     @app.route("/MedicalNotes", methods=["GET", "POST"])
     def add_note():
-        if "user_id" not in session:
-            return redirect(url_for("Authentication.login"))
+        if 'user_id' not in session:
+            return redirect(url_for('Authentication.login'))
 
         if request.method == "GET":
             pid = request.args.get("pid", "").strip()
@@ -543,7 +542,7 @@ def create_app():
             if pid:
                 doc = db.collection("Patient").document(pid).get()
                 if doc.exists:
-                    patient_name = (doc.to_dict() or {}).get("FullName", "")
+                    patient_name = doc.to_dict().get("FullName", "")
 
             return render_template(
                 "MedicalNotes.html",
@@ -554,20 +553,19 @@ def create_app():
             )
 
         try:
-            data = request.get_json(silent=True) or request.form or {}
-            pid = (data.get("pid") or "").strip()
-            note_text = (data.get("note_text") or "").strip()
+            data = request.get_json() or request.form
+            pid = data.get("pid")
+            note_text = data.get("note_text")
             icd_codes = data.get("icd_codes", [])
-            predicted_codes = data.get("predicted_codes", [])
-
-            if not pid or not note_text or not icd_codes:
-                return jsonify({"status": "error", "message": "Missing fields"}), 400
+            
 
             patient_ref = db.collection("Patient").document(pid)
 
+            # Generate unique Note ID
             note_id = "note_id_" + uuid.uuid4().hex[:8]
             note_ref = patient_ref.collection("MedicalNote").document(note_id)
 
+             # saving the note
             note_ref.set({
                 "NoteID": note_id,
                 "Note": note_text,
@@ -575,13 +573,15 @@ def create_app():
                 "CreatedBy": session.get("user_id")
             })
 
+            # Generate unique icd ID
             icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-            icd_ref = note_ref.collection("ICDcode").document(icd_id)
+            icd_doc_ref = note_ref.collection("ICDcode").document(icd_id)
 
-            icd_ref.set({
+             # saving the icd code
+            icd_doc_ref.set({
                 "ICD_ID": icd_id,
-                "Adjusted": [c["Code"] for c in icd_codes],
-                "Predicted": predicted_codes,
+                "Adjusted": [c["Code"] for c in icd_codes],   # ARRAY of ALL selected codes
+                "Predicted": [],
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
@@ -627,7 +627,7 @@ def create_app():
         else:
             # Return only selected category
             for cat in app.icd_data:
-                if cat["Category"].strip().lower() == category.strip().lower():
+                if cat["Category"].lower() == category.lower():
                     results = cat.get("Codes", [])
                     break
 
@@ -651,16 +651,8 @@ def create_app():
             if category and category != "all" and cat["Category"].lower() != category:
                 continue
             for code in cat["Codes"]:
-                if (
-                    term in code["Code"].lower()
-                    or term in code["Description"].lower()
-                    or term in cat["Category"].lower()   # ✅ search category
-                ):
-                    results.append({
-                        "Code": code["Code"],
-                        "Description": code["Description"],
-                        "Category": cat["Category"]      # ✅ send category to frontend
-                    })
+                if term in code["Code"].lower() or term in code["Description"].lower():
+                    results.append(code)
 
         # remove duplicates
         unique = {item["Code"]: item for item in results}
@@ -946,7 +938,7 @@ def create_app():
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
         
-    # ---------------------------
+    
     # UPDATE PATIENT INFO ONLY
     # ---------------------------
     @app.route("/edit_patient/<pid>", methods=["GET", "POST"])
@@ -963,97 +955,150 @@ def create_app():
         if not patient_doc.exists:
             return redirect(url_for("dashboard"))
 
+        # ✅ GET => open SAME page in info mode
+        if request.method == "GET":
+            return redirect(url_for("view_patient", pid=pid, mode="info"))
+
+        # ---------- POST ----------
         pdata = patient_doc.to_dict() or {}
         errors = []
 
-        # Default form values (GET)
+        full_name = request.form.get("full_name", "").strip()
+        dob = request.form.get("dob", "").strip()
+        gender = request.form.get("gender", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        address = request.form.get("address", "").strip()
+        blood = request.form.get("blood_type", "").strip()
+
         form = {
-            "full_name": pdata.get("FullName", ""),
-            "dob": pdata.get("DOB", ""),
-            "gender": pdata.get("Gender", ""),
-            "phone": pdata.get("Phone", ""),
-            "email": pdata.get("Email", ""),
-            "address": pdata.get("Address", ""),
-            "blood_type": pdata.get("BloodType", ""),
+            "full_name": full_name,
+            "dob": dob,
+            "gender": gender,
+            "phone": phone,
+            "email": email,
+            "address": address,
+            "blood_type": blood,
         }
 
-        if request.method == "POST":
-            full_name = request.form.get("full_name", "").strip()
-            dob = request.form.get("dob", "").strip()
-            gender = request.form.get("gender", "").strip()
-            phone = request.form.get("phone", "").strip()
-            email = request.form.get("email", "").strip()
-            address = request.form.get("address", "").strip()
-            blood = request.form.get("blood_type", "").strip()
+        # ---- validations ----
+        if not all([full_name, dob, gender, phone, email, address, blood]):
+            errors.append("All fields are required.")
 
-            form = {
-                "full_name": full_name,
-                "dob": dob,
-                "gender": gender,
-                "phone": phone,
-                "email": email,
-                "address": address,
-                "blood_type": blood,
-            }
+        if phone and not re.fullmatch(r'^05\d{8}$', phone):
+            errors.append("Phone must start with 05 and be 10 digits.")
 
-            # ---- validations (keep yours) ----
-            if not all([full_name, dob, gender, phone, email, address, blood]):
-                errors.append("All fields are required.")
+        if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+            errors.append("Invalid email format.")
 
-            if phone and not re.fullmatch(r'^05\d{8}$', phone):
-                errors.append("Phone must start with 05 and be 10 digits.")
+        if dob:
+            try:
+                dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                if dob_date > date.today():
+                    errors.append("Date of Birth cannot be in the future.")
 
-            if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
-                errors.append("Invalid email format.")
+                age = date.today().year - dob_date.year
+                if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
+                    age -= 1
 
-            if dob:
+                if age > 130:
+                    errors.append("Age cannot exceed 130 years.")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        # ---- if errors: render SAME view_patient.html (mode=info) ----
+        if errors:
+            # rebuild notes for the page
+            notes_out = []
+            notes = patient_ref.collection("MedicalNote").order_by("CreatedDate", direction="DESCENDING").stream()
+            for n in notes:
+                nd = n.to_dict() or {}
+
+                created = nd.get("CreatedDate")
+                created_str = ""
                 try:
-                    dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
-                    if dob_date > date.today():
-                        errors.append("Date of Birth cannot be in the future.")
+                    if isinstance(created, datetime):
+                        created_str = created.strftime("%Y-%m-%d %H:%M")
+                        created_iso = created.isoformat()
+                    elif created:
+                        created_str = str(created)
+                        created_iso = ""
+                except:
+                    created_str = ""
 
-                    age = date.today().year - dob_date.year
-                    if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
-                        age -= 1
-                    if age > 130:
-                        errors.append("Age cannot exceed 130 years.")
-                except ValueError:
-                    errors.append("Invalid date format.")
+                icd_id = ""
+                adjusted_codes = []
+                predicted_codes = []
 
-            if errors:
-                return render_template("edit_patient.html", pid=pid, form=form, errors=errors)
+                try:
+                    icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
+                    if icd_docs:
+                        icd_id = icd_docs[0].id
+                        icd_data = icd_docs[0].to_dict() or {}
+                        adjusted_codes = icd_data.get("Adjusted", []) or []
+                        predicted_codes = icd_data.get("Predicted", []) or []
+                except:
+                    pass
 
-            # ---- detect changes (server-side truth) ----
-            def norm(s):
-                return (s or "").strip()
+                adjusted_codes_str = ", ".join(
+                    [str(x).strip().upper() for x in adjusted_codes if str(x).strip()]
+                )
 
-            changed = (
-                norm(pdata.get("FullName")) != full_name or
-                norm(pdata.get("DOB")) != dob or
-                norm(pdata.get("Gender")) != gender or
-                norm(pdata.get("Phone")) != phone or
-                norm(pdata.get("Email")) != email or
-                norm(pdata.get("Address")) != address or
-                norm(pdata.get("BloodType")) != blood
+                predicted_codes_str = ", ".join(
+                    [str(x).strip().upper() for x in predicted_codes if str(x).strip()]
+                )
+
+                notes_out.append({
+                    "note_id": n.id,
+                    "note_text": nd.get("Note", ""),
+                    "created_date": created_str,
+                    "created_iso": created_iso,   # ✅ ADD THIS
+                    "icd_id": icd_id,
+                    "icd_codes_str": adjusted_codes_str,
+                    "predicted_codes_str": predicted_codes_str
+                })
+
+            patient_name = (pdata.get("FullName") or "")
+            return render_template(
+                "view_patient.html",
+                pid=pid,
+                patient_name=patient_name,
+                form=form,
+                notes=notes_out,
+                errors=errors,
+                mode="info"
             )
 
-            if changed:
-                patient_ref.update({
-                    "FullName": full_name,
-                    "DOB": dob,
-                    "Gender": gender,
-                    "Phone": phone,
-                    "Email": email,
-                    "Address": address,
-                    "BloodType": blood,
-                })
-                return redirect(url_for("view_patient", pid=pid, saved="1"))
+        # ---- detect changes ----
+        def norm(s):
+            return (s or "").strip()
 
-            # no changes
-            return redirect(url_for("view_patient", pid=pid))
+        changed = (
+            norm(pdata.get("FullName")) != full_name or
+            norm(pdata.get("DOB")) != dob or
+            norm(pdata.get("Gender")) != gender or
+            norm(pdata.get("Phone")) != phone or
+            norm(pdata.get("Email")) != email or
+            norm(pdata.get("Address")) != address or
+            norm(pdata.get("BloodType")) != blood
+        )
 
-        return render_template("edit_patient.html", pid=pid, form=form, errors=errors)
-    
+        if changed:
+            patient_ref.update({
+                "FullName": full_name,
+                "DOB": dob,
+                "Gender": gender,
+                "Phone": phone,
+                "Email": email,
+                "Address": address,
+                "BloodType": blood,
+            })
+            return redirect(url_for("view_patient", pid=pid, saved="1"))
+
+        # no changes
+        return redirect(url_for("view_patient", pid=pid, saved="0"))
+
+              
     # ---------------------------
     # MEDICAL NOTES EDIT PAGE (LIST)
     # ---------------------------
@@ -1061,58 +1106,7 @@ def create_app():
     def edit_medical_notes(pid):
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
-
-        pid = (pid or "").strip()
-        if not re.fullmatch(r"\d{10}", pid):
-            return redirect(url_for("dashboard"))
-
-        patient_ref = db.collection("Patient").document(pid)
-        patient_doc = patient_ref.get()
-        if not patient_doc.exists:
-            return redirect(url_for("dashboard"))
-
-        pdata = patient_doc.to_dict() or {}
-        patient_name = pdata.get("FullName", "")
-
-        notes_out = []
-        notes = patient_ref.collection("MedicalNote").order_by("CreatedDate", direction="DESCENDING").stream()
-        for n in notes:
-            nd = n.to_dict() or {}
-            created = nd.get("CreatedDate")
-            created_str = ""
-            try:
-                if isinstance(created, datetime):
-                    created_str = created.strftime("%Y-%m-%d %H:%M")
-                elif created:
-                    created_str = str(created)
-            except:
-                created_str = ""
-
-            icd_id = ""
-            icd_codes = []
-            try:
-                icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
-                if icd_docs:
-                    icd_id = icd_docs[0].id
-                    icd_data = icd_docs[0].to_dict() or {}
-                    icd_codes = icd_data.get("Adjusted", []) or []
-            except:
-                pass
-
-            icd_codes_str = ", ".join([str(x).strip().upper() for x in icd_codes if str(x).strip()])
-
-            notes_out.append({
-                "note_id": n.id,
-                "note_text": nd.get("Note", ""),
-                "created_date": created_str,
-                "icd_id": icd_id,
-                "icd_codes_str": icd_codes_str
-            })
-
-            
-
-        return render_template("edit_medical_notes.html", pid=pid, patient_name=patient_name, notes=notes_out, errors=[])
-
+        return redirect(url_for("view_patient", pid=pid))
 
     # ---------------------------
     # UPDATE ONE MEDICAL NOTE ONLY
@@ -1135,74 +1129,102 @@ def create_app():
 
         note_text = request.form.get("note_text", "").strip()
         icd_id = (request.form.get("icd_id") or "").strip()
-        raw_codes = request.form.get("icd_codes", "") or ""
+        raw_adjusted_codes = request.form.get("icd_codes", "") or ""
+        raw_predicted_codes = request.form.get("predicted_icd_codes", "") or ""
 
-        # basic validation
         if not note_text:
-            return redirect(url_for("edit_medical_notes", pid=pid))
-
-        # parse codes
-        parsed = []
-        for part in raw_codes.split(","):
+            return redirect(url_for("view_patient", pid=pid, err="note_empty"))
+        
+        # parse adjusted codes
+        parsed_adjusted = []
+        seen_adjusted = set()
+        for part in raw_adjusted_codes.split(","):
             code = part.strip().upper()
-            if code:
-                parsed.append(code)
+            if code and code not in seen_adjusted:
+                parsed_adjusted.append(code)
+                seen_adjusted.add(code)
 
-        if len(parsed) == 0:
-            return redirect(url_for("edit_medical_notes", pid=pid, err="icd_required"))
+        parsed_predicted = []
+        seen_predicted = set()
+        for part in raw_predicted_codes.split(","):
+            code = part.strip().upper()
+            if code and code not in seen_predicted:
+                parsed_predicted.append(code)
+                seen_predicted.add(code)
+
+        # enforce at least one code total
+        if len(parsed_adjusted) == 0 and len(parsed_predicted) == 0:
+            return redirect(url_for("view_patient", pid=pid, err="icd_required"))
 
         note_ref = patient_ref.collection("MedicalNote").document(note_id)
 
-        # --- read current stored values to detect "no changes" ---
+        # read old values for change detection
         old_note_text = ""
-        old_codes = []
+        old_adjusted = []
+        old_predicted = []
 
         note_doc = note_ref.get()
         if note_doc.exists:
             old_note_text = (note_doc.to_dict() or {}).get("Note", "") or ""
 
-        # read codes from the same icd_id (or fallback to first ICD doc)
-        if icd_id:
-            icd_doc = note_ref.collection("ICDcode").document(icd_id).get()
-            if icd_doc.exists:
-                old_codes = (icd_doc.to_dict() or {}).get("Adjusted", []) or []
-        else:
-            icd_docs = list(note_ref.collection("ICDcode").limit(1).stream())
-            if icd_docs:
-                icd_id = icd_docs[0].id
-                old_codes = (icd_docs[0].to_dict() or {}).get("Adjusted", []) or []
+        icd_ref = None
 
-        # --- compare old vs new ---
+        if icd_id:
+            candidate_ref = note_ref.collection("ICDcode").document(icd_id)
+            candidate_doc = candidate_ref.get()
+            if candidate_doc.exists:
+                icd_ref = candidate_ref
+                icd_data = candidate_doc.to_dict() or {}
+                old_adjusted = icd_data.get("Adjusted", []) or []
+                old_predicted = icd_data.get("Predicted", []) or []
+
+        if icd_ref is None:
+            existing_icd_docs = list(note_ref.collection("ICDcode").limit(1).stream())
+            if existing_icd_docs:
+                icd_ref = existing_icd_docs[0].reference
+                icd_id = existing_icd_docs[0].id
+                icd_data = existing_icd_docs[0].to_dict() or {}
+                old_adjusted = icd_data.get("Adjusted", []) or []
+                old_predicted = icd_data.get("Predicted", []) or []
+
         old_norm_text = (old_note_text or "").strip()
         new_norm_text = (note_text or "").strip()
 
-        old_norm_codes = sorted([str(x).strip().upper() for x in (old_codes or []) if str(x).strip()])
-        new_norm_codes = sorted([str(x).strip().upper() for x in (parsed or []) if str(x).strip()])
+        old_norm_adjusted = sorted([str(x).strip().upper() for x in old_adjusted if str(x).strip()])
+        new_norm_adjusted = sorted([str(x).strip().upper() for x in parsed_adjusted if str(x).strip()])
 
-        changed = (old_norm_text != new_norm_text) or (old_norm_codes != new_norm_codes)
+        old_norm_predicted = sorted([str(x).strip().upper() for x in old_predicted if str(x).strip()])
+        new_norm_predicted = sorted([str(x).strip().upper() for x in parsed_predicted if str(x).strip()])
 
-        # update note text (even if unchanged; harmless)
+        changed = (
+            old_norm_text != new_norm_text or
+            old_norm_adjusted != new_norm_adjusted or
+            old_norm_predicted != new_norm_predicted
+        )
+
+        # update note text
         note_ref.update({"Note": note_text})
 
-        # update ICD doc (create if missing)
-        if icd_id:
-            note_ref.collection("ICDcode").document(icd_id).update({
-                "Adjusted": parsed,
+        # create ICD doc if missing
+        if icd_ref is None:
+            new_icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
+            icd_ref = note_ref.collection("ICDcode").document(new_icd_id)
+            icd_ref.set({
+                "ICD_ID": new_icd_id,
+                "Adjusted": parsed_adjusted,
+                "Predicted": parsed_predicted,
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
         else:
-            new_icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-            note_ref.collection("ICDcode").document(new_icd_id).set({
-                "ICD_ID": new_icd_id,
-                "Adjusted": parsed,
-                "Predicted": [],
+            icd_ref.update({
+                "Adjusted": parsed_adjusted,
+                "Predicted": parsed_predicted,
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
 
-        return redirect(url_for("edit_medical_notes", pid=pid, saved="1" if changed else "0"))
-    
+        return redirect(url_for("view_patient", pid=pid, saved="1" if changed else "0"))
 
         # ---------------------------
     # DELETE ONE MEDICAL NOTE + ALL ICD CODES
@@ -1281,41 +1303,66 @@ def create_app():
             try:
                 if isinstance(created, datetime):
                     created_str = created.strftime("%Y-%m-%d %H:%M")
+                    created_iso = created.isoformat()
                 elif created:
                     created_str = str(created)
+                    created_iso = ""
             except:
                 created_str = ""
 
+
             icd_id = ""
-            icd_codes = []
+            adjusted_codes = []
+            predicted_codes = []
+
             try:
                 icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
                 if icd_docs:
                     icd_id = icd_docs[0].id
                     icd_data = icd_docs[0].to_dict() or {}
-                    icd_codes = icd_data.get("Adjusted", []) or []
+                    adjusted_codes = icd_data.get("Adjusted", []) or []
+                    predicted_codes = icd_data.get("Predicted", []) or []
             except:
                 pass
 
-            icd_codes_str = ", ".join([str(x).strip().upper() for x in icd_codes if str(x).strip()])
+            adjusted_codes_str = ", ".join(
+                [str(x).strip().upper() for x in adjusted_codes if str(x).strip()]
+            )
+
+            predicted_codes_str = ", ".join(
+                [str(x).strip().upper() for x in predicted_codes if str(x).strip()]
+            )
 
             notes_out.append({
                 "note_id": note_id,
                 "note_text": note_text,
                 "created_date": created_str,
+                "created_iso": created_iso,   # ✅ ADD THIS
                 "icd_id": icd_id,
-                "icd_codes_str": icd_codes_str
+                "icd_codes_str": adjusted_codes_str,
+                "predicted_codes_str": predicted_codes_str
             })
+        
+
+        mode = request.args.get("mode", "view").strip().lower()
+        if mode not in ("view", "info"):
+            mode = "view"
+
+
+        patient_name = pdata.get("FullName", "")
 
         return render_template(
             "view_patient.html",
             pid=pid,
+            patient_name=patient_name,
             form=form,
             notes=notes_out,
             errors=[],
+            mode=mode
         )
 
 
+    
 
     # ✅ Predict
     @app.post("/predict_icd")
@@ -1387,5 +1434,4 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5001)
-
 
