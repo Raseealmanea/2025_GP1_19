@@ -51,9 +51,7 @@
   </div>
   {% endif %}
 
-  <!-- =========================
-       PATIENT INFO SECTION
-  ========================== -->
+  <!-- PATIENT INFO SECTION -->
   {% if mode == 'info' %}
   <form method="POST" action="{{ url_for('edit_patient', pid=pid) }}" novalidate>
   {% endif %}
@@ -154,14 +152,12 @@
 
   <hr style="margin:18px 0; opacity:.25">
 
-  <!-- =========================
-       MEDICAL NOTES SECTION
-  ========================== -->
+  
 
 
   <h2 style="margin:0 0 12px">Medical Notes & ICD Codes</h2>
 
-  <!-- ================= NOTES CONTROL PANEL ================= -->
+  <!--  MEDICAL NOTES SECTION  -->
 <div class="notes-controls" style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:10px;">
 
   <!-- Search -->
@@ -224,7 +220,6 @@ data-date="{{ n.created_iso }}"
               class="note-form"
               data-note-id="{{ n.note_id }}">
 
-          <!-- IMPORTANT: include icd_id so backend compares properly -->
           <input type="hidden" name="icd_id" value="{{ n.icd_id }}">
           <input type="hidden" name="icd_codes" id="icd-input-{{ i }}" value="{{ n.icd_codes_str }}">
           <input type="hidden" name="predicted_icd_codes" id="predicted-icd-input-{{ i }}" value="{{ n.predicted_codes_str }}">
@@ -313,7 +308,6 @@ data-date="{{ n.created_iso }}"
 </p>
 </main>
 
-<!-- ICD Modal (only useful in notes mode, but safe to keep always) -->
 <div id="icdModal" class="confirm-modal">
   <div class="confirm-box" style="max-width:900px; width:92%;">
     <h3 class="confirm-title"><i class="fa-solid fa-list-check"></i> ICD Code Browser</h3>
@@ -340,7 +334,6 @@ data-date="{{ n.created_iso }}"
   </div>
 </div>
 
-<!-- Confirm Modal -->
 <div id="confirmOverlay" class="confirm-overlay" aria-hidden="true">
   <div class="confirm-modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
     <h3 id="confirmTitle" class="confirm-modal-title">Confirm changes</h3>
@@ -353,7 +346,6 @@ data-date="{{ n.created_iso }}"
 </div>
 
 <script>
-/* ---------- Toast helper ---------- */
 function showToast(message, type="info", ms=5000, extraClass=""){
   const container = document.getElementById("toast-container");
   if (!container) return;
@@ -371,7 +363,6 @@ function showToast(message, type="info", ms=5000, extraClass=""){
   }, ms);
 }
 
-/* ---------- read saved/err from URL ---------- */
 (function(){
   const url = new URL(window.location.href);
   const err = url.searchParams.get("err");
@@ -396,9 +387,7 @@ function showToast(message, type="info", ms=5000, extraClass=""){
 </script>
 
 {% if mode == 'info' %}
-<!-- =========================
-     EDIT PATIENT JS (same logic you had)
-========================== -->
+
 <script>
 const touched = new Set();
 let forceShowErrors = false;
@@ -707,7 +696,6 @@ document.querySelectorAll(".note-edit-btn").forEach(btn => {
     setNoteEditing(btn.dataset.note, true);
   });
 });
-/* ----- Confirm modal + danger ----- */
 function confirmModal(message){
   return new Promise((resolve) => {
     const overlay = document.getElementById("confirmOverlay");
@@ -748,12 +736,10 @@ function confirmModalDanger(message){
   });
 }
 
-/* ----- enforce ICD + confirm on save ----- */
 document.querySelectorAll(".note-form").forEach(form => {
   form.addEventListener("submit", async (e) => {
     const noteId = form.dataset.noteId;
 
-    // only allow submit for the note currently being edited
     if (!editingNoteId || noteId !== editingNoteId) {
       e.preventDefault();
       return;
@@ -1067,7 +1053,6 @@ document.addEventListener("click", (e) => {
     adjustedHidden.value = adjustedCodes.join(", ");
   }
 
-  // re-render adjusted chips
   if (adjustedChips) {
     adjustedChips.innerHTML = "";
     if (!adjustedCodes.length) {
@@ -1082,7 +1067,6 @@ document.addEventListener("click", (e) => {
     }
   }
 
-  // re-render predicted chips
   if (predictedChips) {
     predictedChips.innerHTML = "";
     if (!predictedCodes.length) {
@@ -1099,9 +1083,7 @@ document.addEventListener("click", (e) => {
 });
 </script>
 <script>
-// ================= CORE HELPERS =================
 
-// Simple fuzzy match (like Google-lite)
 function fuzzyMatch(text, query) {
   text = text.toLowerCase();
   query = query.toLowerCase();
@@ -1114,7 +1096,6 @@ function fuzzyMatch(text, query) {
   return q === query.length;
 }
 
-// Highlight matches
 function highlightText(element, query) {
   if (!element.dataset.original) {
     element.dataset.original = element.textContent;
@@ -1130,7 +1111,7 @@ function highlightText(element, query) {
 }
 
 
-// ================= MAIN FILTER FUNCTION =================
+//  FILTER FUNCTION
 
 function filterNotes() {
   const notes = document.querySelectorAll(".note-card");
@@ -1148,13 +1129,13 @@ function filterNotes() {
 
     let show = true;
 
-    // 🔍 Search (simple + reliable)
+    //  Search 
     if (search) {
       const match = text.includes(search) || icd.includes(search);
       if (!match) show = false;
     }
 
-    // 📅 Date filter
+    //  Date filter
     if (dateFilter !== "all" && dateStr) {
       const noteDate = new Date(dateStr);
       const now = new Date();
@@ -1163,31 +1144,28 @@ function filterNotes() {
       if (diffDays > parseInt(dateFilter)) show = false;
     }
 
-    // 🏷 Type filter
+    // Type filter
     if (typeFilter === "adjusted" && !hasAdjusted) show = false;
     if (typeFilter === "predicted" && !hasPredicted) show = false;
 
-    // Apply visibility
     note.style.display = show ? "" : "none";
 
-    // ✨ Highlight ONLY if visible
     const textEl = note.querySelector(".display-mode");
     if (textEl) {
       if (show && search) {
         highlightText(textEl, search);
       } else {
-        highlightText(textEl, ""); // reset
+        highlightText(textEl, ""); 
       }
     }
   });
 
-  // ✅ FIX: this must be OUTSIDE the loop
   const visibleNotes = Array.from(notes).filter(n => n.style.display !== "none");
 
   document.getElementById("noResultsMsg").style.display =
     visibleNotes.length === 0 ? "block" : "none";
 }
-// ================= SORT FUNCTION =================
+//  SORT FUNCTION 
 
 function sortNotes() {
   const sortType = document.getElementById("sortNotes").value;
@@ -1208,9 +1186,6 @@ function sortNotes() {
 
   notes.forEach(n => container.appendChild(n));
 }
-
-
-// ================= EVENTS =================
 
 document.getElementById("notesSearch").addEventListener("input", filterNotes);
 document.getElementById("filterDate").addEventListener("change", filterNotes);
