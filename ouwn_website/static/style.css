@@ -1536,6 +1536,7 @@ th {
 }
 
 
+
 /* VIEW PATIENT PAGE */
 
 .page-view-patient .note-text.display-mode {
@@ -1545,6 +1546,55 @@ th {
   border-radius: 8px;
   line-height: 1.5;
   margin: 0;
+}
+
+.page-view-patient .note-text.edit-mode {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow-y: auto;
+  max-height: none;
+  box-sizing: border-box;
+  padding: 10px 12px 18px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  line-height: 1.5;
+}
+
+.page-view-patient .note-editor {
+  display: none;
+  width: 100%;
+  position: relative;
+}
+
+.page-view-patient .note-editor .note-text.edit-mode {
+  margin-bottom: 0;
+}
+
+.page-view-patient .note-resize-handle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 2;
+}
+
+.page-view-patient .note-resize-handle::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(135deg, transparent 0 42%, #b8b8b8 42% 50%, transparent 50% 100%),
+    linear-gradient(135deg, transparent 0 58%, #b8b8b8 58% 66%, transparent 66% 100%),
+    linear-gradient(135deg, transparent 0 74%, #b8b8b8 74% 82%, transparent 82% 100%);
+  pointer-events: none;
 }
 
 .page-view-patient mark {
@@ -1786,5 +1836,176 @@ th {
   background: #f8f6fc;
   border: 1px solid #e6dff2;
   color: #5a4376;
+}
+
+
+.page-view-patient .custom-select-selected {
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.page-view-patient .custom-select-items div {
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.page-view-patient .custom-select.disabled .custom-select-selected {
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+  color: #555555;
+}
+
+.page-view-patient .custom-select-wrapper select {
+  display: none;
+}
+
+/* Custom dropdown */
+.page-view-patient .custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.page-view-patient .custom-select-selected {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #d9d9e3;
+  background: #fff;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.page-view-patient .custom-select-selected:hover {
+  border-color: #9975C1;
+}
+
+.page-view-patient .custom-select-selected::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: url("data:image/svg+xml;utf8,<svg fill='%239975C1' viewBox='0 0 20 20'><path d='M5.5 7l4.5 5 4.5-5z'/></svg>") no-repeat center;
+}
+
+/* Dropdown list */
+.page-view-patient .custom-select-items {
+  position: absolute;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  margin-top: 6px;
+  display: none;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  z-index: 999;
+}
+
+.page-view-patient .custom-select-items div {
+  padding: 10px;
+  cursor: pointer;
+}
+
+/* Dashboard custom droplist */
+
+
+.search-select .custom-select {
+  width: 130px; /* shorter only for search */
+}
+   /* Hide native select */
+.custom-select-wrapper select {
+  display: none;
+}
+
+/* Container */
+.custom-select {
+  position: relative;
+  width: 180px;
+}
+
+/* Selected box (the visible button) */
+.custom-select-selected {
+  width: 100%;
+padding: 8px 28px 8px 12px;
+   box-sizing: border-box;
+
+  font-size: 14px;
+  font-weight: 400;
+
+  border: 1px solid #d9d9e3;
+  background: #fff;
+
+  cursor: pointer;
+  transition: 0.2s;
+
+  /* 🔥 Shape fix */
+  border-radius: 0 12px 12px 0;
+
+  /* 🔥 Prevent resizing */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover */
+.custom-select-selected:hover {
+  border-color: #9975C1;
+}
+
+/* Dropdown arrow */
+.custom-select-selected::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: url("data:image/svg+xml;utf8,<svg fill='%239975C1' viewBox='0 0 20 20'><path d='M5.5 7l4.5 5 4.5-5z'/></svg>") no-repeat center;
+}
+
+/* Dropdown list */
+.custom-select-items {
+  position: absolute;
+  width: 100%;
+  margin-top: 6px;
+
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+
+  display: none;
+  z-index: 999;
+
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Options */
+.custom-select-items div {
+  padding: 10px;
+  font-size: 14px;
+  cursor: pointer;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-select-items div:hover {
+  background: #f3eaff;
+}
+
+/* Open state */
+.custom-select.open .custom-select-items {
+  display: block;
+}
+
+/* Disabled */
+.custom-select.disabled .custom-select-selected {
+  cursor: not-allowed;
+  border-color: #e0e0e0;
+  color: #555;
 }
 
