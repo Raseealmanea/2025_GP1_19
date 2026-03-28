@@ -296,19 +296,24 @@ function renderPredictions() {
   });
 }
 
-  async function predictTop20() {
+  async function predictTop50() {
   const noteRaw = document.getElementById("note_text").value.trim();
-  if (!noteRaw) return alert("Write a note first");
+  
+  if (!noteRaw) {
+    showMessage("Please write a medical note first!", "error");
+    return;
+  }
+
 
   const res = await fetch("/predict_icd", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ note_text: noteRaw , top_k: 20  })
+    body: JSON.stringify({ note_text: noteRaw, top_k: 50 })
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.status !== "success") {
-    alert(data.message || "Prediction failed");
+    showMessage(data.message || "Prediction failed", "error");
     return;
   }
 
@@ -635,7 +640,7 @@ function renderPredictions() {
 
     window.addEventListener("scroll", handlePageScroll);
 
-    document.getElementById("predictBtn")?.addEventListener("click", predictTop20);
+    document.getElementById("predictBtn")?.addEventListener("click", predictTop50);
     document.getElementById("micBtn")?.addEventListener("click", toggleMic);
     
   });
