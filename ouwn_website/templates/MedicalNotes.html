@@ -163,18 +163,17 @@
        AI Predictions
        ========================= -->
   <button type="button" id="predictBtn">✨ Predict</button>
-
-  <div id="thrRow" class="pred-card hidden" style="margin-top:10px;">
-  <div class="pred-header" style="margin-bottom:0;">
-    <div>
-      <div class="pred-title">Threshold Filter</div>
-      <div class="pred-sub">Filters display only (does not auto-save)</div>
+   <div id="topkRow" class="pred-card hidden" style="margin-top:10px;">
+    <div class="pred-header" style="margin-bottom:0;">
+      <div>
+        <div class="pred-title" id="topkTitle">Top-7 Filter</div>
+        <div class="pred-sub">Shows only the first K predictions</div>
+      </div>
     </div>
-    <div class="pred-sub"><span id="thrValue">0.50</span></div>
+    
+    <input id="thrInput" type="range" min="0" max="1" step="0.01" value="0.50" style="width:100%;">
   </div>
-
-  <input id="thrInput" type="range" min="0" max="1" step="0.01" value="0.50" style="width:100%;">
-</div>
+  
 
   <div id="predictionsCard" class="pred-card hidden">
     <div class="pred-header">
@@ -225,46 +224,40 @@
 </footer>
 
 <script>
-  // =========================
-  // Helpers
-  // =========================
-  function showMessage(msg, type = "success", duration = 3000) {
-    const banner = document.getElementById("saveMessage");
-    banner.textContent = msg;
-    banner.className = `banner show ${type}`;
-    setTimeout(() => (banner.className = "banner"), duration);
-  }
+   function showMessage(msg, type = "success", duration = 3000) {
+  const banner = document.getElementById("saveMessage");
+  banner.textContent = msg;
+  banner.className = `banner show ${type}`;
+  setTimeout(() => (banner.className = "banner"), duration);
+}
 
-  // =========================
-  // AI Predictions (Top-5)
-  // =========================
-  let lastPredictions = []; // نخزن آخر نتائج عشان نفلتر بدون إعادة طلب السيرفر
+let lastPredictions = [];
 
 function showPredictions(preds) {
   lastPredictions = preds || [];
 
   document.getElementById("predictionsCard").classList.remove("hidden");
-  document.getElementById("thrRow").classList.remove("hidden");
+  document.getElementById("topkRow").classList.remove("hidden");
 
-  renderPredictions(); // يرسم حسب threshold الحالي
+  renderPredictions();
 }
 
 function renderPredictions() {
   const list = document.getElementById("predictionsList");
-  const thr = Number(document.getElementById("thrInput").value || 0.5);
-  document.getElementById("thrValue").textContent = thr.toFixed(2);
+  const k = Number(document.getElementById("topkInput").value || 7);
+
+  document.getElementById("topkTitle").textContent = `Top-${k} Filter`;
 
   list.innerHTML = "";
 
-  
-  const filtered = lastPredictions.filter(p => (p.score || 0) >= thr);
+  const shown = lastPredictions.slice(0, k);
 
-  if (!filtered.length) {
-    list.innerHTML = `<div class="pred-sub">No codes above this threshold.</div>`;
+  if (!shown.length) {
+    list.innerHTML = `<div class="pred-sub">No predictions to display.</div>`;
     return;
   }
 
-  filtered.forEach((p) => {
+  shown.forEach((p) => {
     const pct = Math.round((p.score || 0) * 100);
 
     const row = document.createElement("div");
@@ -272,7 +265,6 @@ function renderPredictions() {
 
     row.innerHTML = `
       <div class="pred-left">
-        <!-- ✅ unchecked by default -->
         <input class="pred-check" type="checkbox" value="${p.Code}">
         <div class="pred-code">${p.Code}</div>
       </div>
@@ -287,14 +279,13 @@ function renderPredictions() {
   });
 }
 
-  async function predictTop50() {
+async function predictTop50() {
   const noteRaw = document.getElementById("note_text").value.trim();
-  
+
   if (!noteRaw) {
     showMessage("Please write a medical note first!", "error");
     return;
   }
-
 
   const res = await fetch("/predict_icd", {
     method: "POST",
@@ -310,7 +301,8 @@ function renderPredictions() {
 
   showPredictions(data.predictions);
 }
-  document.getElementById("thrInput").addEventListener("input", renderPredictions);
+
+document.getElementById("topkInput").addEventListener("input", renderPredictions);
 
   // =========================
   // ICD Browser (your existing logic)
