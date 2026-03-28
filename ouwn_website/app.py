@@ -532,64 +532,66 @@ def create_app():
     # MEDICAL NOTES + ICD CODES
     @app.route("/MedicalNotes", methods=["GET", "POST"])
     def add_note():
-        if 'user_id' not in session:
-            return redirect(url_for('Authentication.login'))
-
-        if request.method == "GET":
-            pid = request.args.get("pid", "").strip()
-            patient_name = ""
-
-            if pid:
-                doc = db.collection("Patient").document(pid).get()
-                if doc.exists:
-                    patient_name = doc.to_dict().get("FullName", "")
-
-            return render_template(
-                "MedicalNotes.html",
-                prefilled_pid=pid,
-                prefilled_name=patient_name,
-                note_text="",
-                selected_icd_codes=[]
-            )
-
-        try:
-            data = request.get_json() or request.form
-            pid = data.get("pid")
-            note_text = data.get("note_text")
-            icd_codes = data.get("icd_codes", [])
-            
-
-            patient_ref = db.collection("Patient").document(pid)
-
-            # Generate unique Note ID
-            note_id = "note_id_" + uuid.uuid4().hex[:8]
-            note_ref = patient_ref.collection("MedicalNote").document(note_id)
-
-             # saving the note
-            note_ref.set({
-                "NoteID": note_id,
-                "Note": note_text,
-                "CreatedDate": datetime.now(),
-                "CreatedBy": session.get("user_id")
-            })
-
-            # Generate unique icd ID
-            icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-            icd_doc_ref = note_ref.collection("ICDcode").document(icd_id)
-
-             # saving the icd code
-            icd_doc_ref.set({
-                "ICD_ID": icd_id,
-                "Adjusted": [c["Code"] for c in icd_codes],   # ARRAY of ALL selected codes
-                "Predicted": [],
-                "AdjustedBy": session.get("user_id"),
-                "AdjustedAt": datetime.now()
-            })
-
-            return jsonify({"status": "success", "redirect": url_for("dashboard")})
-
-        except Exception as e:
-            return jsonify({"status": "error", "message": str(e)}), 500
+            if "user_id" not in session:
+                return redirect(url_for("Authentication.login"))
+    
+            if request.method == "GET":
+                pid = request.args.get("pid", "").strip()
+                patient_name = ""
+    
+                if pid:
+                    doc = db.collection("Patient").document(pid).get()
+                    if doc.exists:
+                        patient_name = (doc.to_dict() or {}).get("FullName", "")
+    
+                return render_template(
+                    "MedicalNotes.html",
+                    prefilled_pid=pid,
+                    prefilled_name=patient_name,
+                    note_text="",
+                    selected_icd_codes=[]
+                )
+    
+            try:
+                data = request.get_json(silent=True) or request.form or {}
+                pid = (data.get("pid") or "").strip()
+                note_text = (data.get("note_text") or "").strip()
+                icd_codes = data.get("icd_codes", []) or []
+                predicted_codes = data.get("predicted_codes", []) or []
+    
+                if not pid or not note_text:
+                    return jsonify({"status": "error", "message": "Missing fields"}), 400
+    
+                if len(icd_codes) == 0 and len(predicted_codes) == 0:
+                    return jsonify({"status": "error", "message": "Please select at least one ICD code"}), 400
+    
+                patient_ref = db.collection("Patient").document(pid)
+    
+                note_id = "note_id_" + uuid.uuid4().hex[:8]
+                note_ref = patient_ref.collection("MedicalNote").document(note_id)
+    
+                note_ref.set({
+                    "NoteID": note_id,
+                    "Note": note_text,
+                    "CreatedDate": datetime.now(),
+                    "CreatedBy": session.get("user_id")
+                })
+    
+                icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
+                icd_ref = note_ref.collection("ICDcode").document(icd_id)
+    
+                icd_ref.set({
+                    "ICD_ID": icd_id,
+                    "Adjusted": [c["Code"] for c in icd_codes],
+                    "Predicted": predicted_codes,
+                    "AdjustedBy": session.get("user_id"),
+                    "AdjustedAt": datetime.now()
+                })
+    
+                return jsonify({"status": "success", "redirect": url_for("dashboard")})
+    
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
  # AJAX CHECK ID
     @app.route("/check_id")
     def check_id():
@@ -1377,11 +1379,11 @@ def create_app():
         if not raw_text:
             return jsonify({"status": "error", "message": "Empty note"}), 400
 
-        # ✅ k from UI (default 20, max 50)
+        
         try:
-            k = int(data.get("top_k", 20))
+            k = int(data.get("top_k", 50))
         except Exception:
-            k = 20
+            k = 50
         k = max(1, min(k, 50))
 
         clean_text = preprocess_note_text_exact(raw_text)
@@ -1410,7 +1412,6 @@ def create_app():
             logits = model(input_ids=input_ids, attention_mask=attention_mask)
             probs = torch.sigmoid(logits)[0].detach().cpu()
 
-        # ✅ Top-K بدل Top-5
         vals, inds = torch.topk(probs, k=k)
 
         predictions = []
@@ -1426,8 +1427,6 @@ def create_app():
             "default_threshold": float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5),
             "top_k": k
         })
-
-
     return app
 
 
