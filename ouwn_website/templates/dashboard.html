@@ -376,8 +376,9 @@ function validateUnifiedInput() {
   value = value.replace(/[^0-9]/g, "");
   if (value.length > 4) value = value.slice(0, 4);
   } else if (type === "icd") {
-    value = value.replace(/[^a-zA-Z0-9]/g, "");
-    if (value.length > 0 && !/^[a-zA-Z]/.test(value)) value = "";
+    value = value.replace(/[^a-zA-Z0-9.]/g, "");
+    value = value.replace(/^\./, "");           
+    value = value.replace(/(\..*)\./g, "$1");
     value = value.toUpperCase();
   }
 
