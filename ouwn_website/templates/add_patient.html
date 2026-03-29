@@ -56,7 +56,7 @@
     <!-- Gender -->
     <div class="row">
       <label for="gender">Gender<span class="required">*</span></label>
-      <div class="control">
+      <div class="control custom-select-wrapper">
         <select id="gender" name="gender" required>
           <option value="">Choose</option>
           <option value="M" {% if request.form.get('gender') == 'M' %}selected{% endif %}>Male</option>
@@ -109,7 +109,7 @@
     <!-- Blood Type -->
     <div class="row">
       <label for="blood_type">Blood Type<span class="required">*</span></label>
-      <div class="control">
+      <div class="control custom-select-wrapper">
         <select id="blood_type" name="blood_type" required>
           <option value="">Select</option>
           {% for b in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
