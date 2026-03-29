@@ -58,7 +58,7 @@
       <label for="gender">Gender<span class="required">*</span></label>
       <div class="control custom-select-wrapper">
         <select id="gender" name="gender" required>
-          <option value="">Choose</option>
+          <option value="">Select</option>
           <option value="M" {% if request.form.get('gender') == 'M' %}selected{% endif %}>Male</option>
           <option value="F" {% if request.form.get('gender') == 'F' %}selected{% endif %}>Female</option>
         </select>
