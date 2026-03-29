@@ -1773,7 +1773,7 @@ th {
 
 
 .page-view-patient .toast.error{
-  background: #dc3545;   /* strong red */
+  background: #dc3545;   
 }
 
 .page-view-patient .toast.info{
@@ -1847,20 +1847,13 @@ th {
 .page-view-patient .custom-select-items div {
   font-weight: 400;
   font-size: 14px;
+  padding: 10px;
+  cursor: pointer;
 }
 
-.page-view-patient .custom-select.disabled .custom-select-selected {
-  cursor: not-allowed;
-  border-color: #e0e0e0;
-  color: #555555;
-}
-
-.page-view-patient .custom-select-wrapper select {
-  display: none;
-}
 
 /* Custom dropdown */
-.page-view-patient .custom-select {
+.page-view-patient .custom-select, .page-add-patient .custom-select {
   position: relative;
   width: 100%;
 }
@@ -1874,22 +1867,10 @@ th {
   transition: 0.2s;
 }
 
-.page-view-patient .custom-select-selected:hover {
-  border-color: #9975C1;
-}
-
 .page-view-patient .custom-select-selected::after {
-  content: "";
-  position: absolute;
   right: 14px;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  transform: translateY(-50%);
-  background: url("data:image/svg+xml;utf8,<svg fill='%239975C1' viewBox='0 0 20 20'><path d='M5.5 7l4.5 5 4.5-5z'/></svg>") no-repeat center;
 }
 
-/* Dropdown list */
 .page-view-patient .custom-select-items {
   position: absolute;
   width: 100%;
@@ -1902,58 +1883,46 @@ th {
   z-index: 999;
 }
 
-.page-view-patient .custom-select-items div {
-  padding: 10px;
-  cursor: pointer;
-}
 
 /* Dashboard custom droplist */
 
 
 .search-select .custom-select {
-  width: 130px; /* shorter only for search */
+  width: 130px; 
 }
-   /* Hide native select */
+  
 .custom-select-wrapper select {
   display: none;
 }
 
-/* Container */
+
 .custom-select {
   position: relative;
   width: 180px;
 }
 
-/* Selected box (the visible button) */
+
 .custom-select-selected {
   width: 100%;
 padding: 8px 28px 8px 12px;
    box-sizing: border-box;
-
   font-size: 14px;
   font-weight: 400;
-
   border: 1px solid #d9d9e3;
   background: #fff;
-
   cursor: pointer;
   transition: 0.2s;
-
-  /* 🔥 Shape fix */
   border-radius: 0 12px 12px 0;
-
-  /* 🔥 Prevent resizing */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Hover */
+
 .custom-select-selected:hover {
   border-color: #9975C1;
 }
 
-/* Dropdown arrow */
 .custom-select-selected::after {
   content: "";
   position: absolute;
@@ -1965,47 +1934,60 @@ padding: 8px 28px 8px 12px;
   background: url("data:image/svg+xml;utf8,<svg fill='%239975C1' viewBox='0 0 20 20'><path d='M5.5 7l4.5 5 4.5-5z'/></svg>") no-repeat center;
 }
 
-/* Dropdown list */
+.page-add-patient .custom-select-selected::after {
+  width: 10px;
+  height: 10px;
+}
+
 .custom-select-items {
   position: absolute;
   width: 100%;
   margin-top: 6px;
-
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 12px;
-
   display: none;
   z-index: 999;
-
   max-height: 200px;
   overflow-y: auto;
 }
 
-/* Options */
+
 .custom-select-items div {
   padding: 10px;
   font-size: 14px;
   cursor: pointer;
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+
 .custom-select-items div:hover {
   background: #f3eaff;
 }
 
-/* Open state */
 .custom-select.open .custom-select-items {
   display: block;
 }
 
-/* Disabled */
 .custom-select.disabled .custom-select-selected {
   cursor: not-allowed;
   border-color: #e0e0e0;
   color: #555;
+}
+
+.page-add-patient .custom-select-selected {
+  padding: 10px 28px 10px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  border: 1px solid #d9d9e3;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
