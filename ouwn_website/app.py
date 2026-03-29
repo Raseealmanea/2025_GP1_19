@@ -328,10 +328,10 @@ def create_app():
 
                         # For filtering by ICD prefix
                         if icd_query:
-                            for code in d.get("Adjusted", []):
-                                if str(code).upper().startswith(icd_query):
+                            all_codes = (d.get("Adjusted", []) or []) + (d.get("Predicted", []) or [])
+                            if any(str(code).upper().startswith(icd_query) for code in all_codes):
                                     icd_match = True
-                                    break
+                                    
 
                         # For sorting by earliest ICD date
                         if include_meta:
