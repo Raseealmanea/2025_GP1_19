@@ -75,7 +75,7 @@
   <label>Sort by:</label>
 <div class="custom-select-wrapper">
 <select id="sortBy">
-  <option value="">-- Select --</option>
+  <option value="">Select</option>
   <option value="name_asc">First Name (A → Z)</option>
   <option value="name_desc">First Name (Z → A)</option>
   <option value="age_young">Age (Younger first)</option>
@@ -505,6 +505,12 @@ listBtn.addEventListener("click", () => {
 
   const selected = document.createElement("div");
   selected.className = "custom-select-selected";
+  const selectedLabel = document.createElement("span");
+  selectedLabel.className = "custom-select-selected-label";
+  const selectedArrow = document.createElement("span");
+  selectedArrow.className = "custom-select-selected-arrow";
+  selectedArrow.setAttribute("aria-hidden", "true");
+  selectedArrow.innerHTML = "&#9662;";
 
   const items = document.createElement("div");
   items.className = "custom-select-items";
@@ -529,7 +535,7 @@ listBtn.addEventListener("click", () => {
         select.selectedIndex = index;
         select.dispatchEvent(new Event("change"));
 
-        selected.textContent = option.text;
+        selectedLabel.textContent = option.text;
 
         renderOptions(); // 🔥 rebuild list after change
         custom.classList.remove("open");
@@ -540,7 +546,7 @@ listBtn.addEventListener("click", () => {
   }
 
   // Initial value
-  selected.textContent = select.options[select.selectedIndex]?.text || "Select";
+  selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
 
   renderOptions();
 
@@ -548,13 +554,20 @@ listBtn.addEventListener("click", () => {
     if (select.disabled) return;
 
     e.stopPropagation();
+    const wasOpen = custom.classList.contains("open");
     document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-    custom.classList.toggle("open");
+    if (!wasOpen) custom.classList.add("open");
   });
 
+  selected.appendChild(selectedLabel);
+  selected.appendChild(selectedArrow);
   custom.appendChild(selected);
   custom.appendChild(items);
   wrapper.appendChild(custom);
+});
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
 });
 </script>
 </body>
