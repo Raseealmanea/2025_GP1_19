@@ -10,7 +10,6 @@
 
 {% set mode = mode or 'view' %}
 <body class="form-page medical-note edit-patient view-mode page-view-patient {% if mode == 'info' %}info-editing{% endif %}">
-{% include "header.html" %}
 <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
   <div class="ouwn-crumbs">
     <a class="crumb" href="{{ url_for('dashboard') }}">
@@ -165,34 +164,40 @@
   <h2 style="margin:0 0 12px">Medical Notes & ICD Codes</h2>
 
   <!-- ================= NOTES CONTROL PANEL ================= -->
-<div class="notes-controls" style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:10px;">
+<div class="notes-controls">
 
   <!-- Search -->
-  <input type="text" id="notesSearch"
+  <input type="text" id="notesSearch" class="notes-search-input"
          placeholder="🔍 Search notes (text, ICD, date...)"
-         style="flex:1; padding:10px; border-radius:10px; border:1px solid #ccc;">
+         >
 
   <!-- Date Filter -->
-  <select id="filterDate" style="padding:10px; border-radius:10px;">
+   <div class="custom-select-wrapper notes-filter-select">
+  <select id="filterDate">
     <option value="all">All Dates</option>
     <option value="7">Last 7 days</option>
     <option value="30">Last 30 days</option>
     <option value="365">Last year</option>
   </select>
+  </div>
 
   <!-- ICD Type Filter -->
-  <select id="filterType" style="padding:10px; border-radius:10px;">
+      <div class="custom-select-wrapper notes-filter-select notes-filter-wide">
+  <select id="filterType">
     <option value="all">All Notes</option>
     <option value="predicted">Has Predicted Codes</option>
     <option value="adjusted">Has Adjusted Codes</option>
   </select>
+  </div>
 
   <!-- Sort -->
-  <select id="sortNotes" style="padding:10px; border-radius:10px;">
+      <div class="custom-select-wrapper notes-filter-select notes-filter-wide">
+  <select id="sortNotes">
     <option value="newest">Newest</option>
     <option value="oldest">Oldest</option>
     <option value="most_icd">Most ICD Codes</option>
   </select>
+  </div>
 
 </div>
 <div id="notesContainer">
@@ -1273,6 +1278,12 @@ document.getElementById("sortNotes").addEventListener("change", sortNotes);
 
   const selected = document.createElement("div");
   selected.className = "custom-select-selected";
+  const selectedLabel = document.createElement("span");
+  selectedLabel.className = "custom-select-selected-label";
+  const selectedArrow = document.createElement("span");
+  selectedArrow.className = "custom-select-selected-arrow";
+  selectedArrow.setAttribute("aria-hidden", "true");
+  selectedArrow.innerHTML = "&#9662;";
 
   const items = document.createElement("div");
   items.className = "custom-select-items";
@@ -1297,7 +1308,7 @@ document.getElementById("sortNotes").addEventListener("change", sortNotes);
         select.selectedIndex = index;
         select.dispatchEvent(new Event("change"));
 
-        selected.textContent = option.text;
+        selectedLabel.textContent = option.text;
 
         renderOptions(); // 🔥 rebuild list after change
         custom.classList.remove("open");
@@ -1308,7 +1319,7 @@ document.getElementById("sortNotes").addEventListener("change", sortNotes);
   }
 
   // Initial value
-  selected.textContent = select.options[select.selectedIndex]?.text || "Select";
+  selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
 
   renderOptions();
 
@@ -1316,13 +1327,20 @@ document.getElementById("sortNotes").addEventListener("change", sortNotes);
     if (select.disabled) return;
 
     e.stopPropagation();
+    const wasOpen = custom.classList.contains("open");
     document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-    custom.classList.toggle("open");
+    if (!wasOpen) custom.classList.add("open");
   });
 
+  selected.appendChild(selectedLabel);
+  selected.appendChild(selectedArrow);
   custom.appendChild(selected);
   custom.appendChild(items);
   wrapper.appendChild(custom);
+});
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
 });
 </script>
 </body>
