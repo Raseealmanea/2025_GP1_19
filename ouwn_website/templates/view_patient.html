@@ -10,6 +10,7 @@
 
 {% set mode = mode or 'view' %}
 <body class="form-page medical-note edit-patient view-mode page-view-patient {% if mode == 'info' %}info-editing{% endif %}">
+{% include "header.html" %}
 <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
   <div class="ouwn-crumbs">
     <a class="crumb" href="{{ url_for('dashboard') }}">
