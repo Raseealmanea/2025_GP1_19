@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
       <script src="/static/theme.js" defer></script>
 </head>
-<body class="form-page medical-note">
-
+<body class="form-page medical-note page-add-patient">
+  
 {% include "header.html" %}
 <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
   <div class="ouwn-crumbs">
@@ -192,6 +192,79 @@ email.addEventListener('input', ()=>{
   setValidity(email, ok, "Invalid email format.");
 });
 </script>
+<script>
+  document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
+  const select = wrapper.querySelector("select");
+
+  const custom = document.createElement("div");
+  custom.className = "custom-select";
+
+  const selected = document.createElement("div");
+  selected.className = "custom-select-selected";
+  const selectedLabel = document.createElement("span");
+  selectedLabel.className = "custom-select-selected-label";
+  const selectedArrow = document.createElement("span");
+  selectedArrow.className = "custom-select-selected-arrow";
+  selectedArrow.setAttribute("aria-hidden", "true");
+  selectedArrow.innerHTML = "&#9662;";
+
+  const items = document.createElement("div");
+  items.className = "custom-select-items";
+
+  if (select.disabled) {
+    custom.classList.add("disabled");
+  }
+
+  function renderOptions() {
+    items.innerHTML = ""; // 🔥 clear old options
+
+    Array.from(select.options).forEach((option, index) => {
+      // 🚫 Skip placeholder + selected
+      if (option.value === "" || option.disabled || index === select.selectedIndex) return;
+
+      const div = document.createElement("div");
+      div.textContent = option.text;
+
+      div.addEventListener("click", () => {
+        if (select.disabled) return;
+
+        select.selectedIndex = index;
+        select.dispatchEvent(new Event("change"));
+
+        selectedLabel.textContent = option.text;
+
+        renderOptions(); // 🔥 rebuild list after change
+        custom.classList.remove("open");
+      });
+
+      items.appendChild(div);
+    });
+  }
+
+  // Initial value
+  selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
+
+  renderOptions();
+
+  selected.addEventListener("click", (e) => {
+    if (select.disabled) return;
+
+    e.stopPropagation();
+    const wasOpen = custom.classList.contains("open");
+    document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+    if (!wasOpen) custom.classList.add("open");
+  });
+
+  selected.appendChild(selectedLabel);
+  selected.appendChild(selectedArrow);
+  custom.appendChild(selected);
+  custom.appendChild(items);
+  wrapper.appendChild(custom);
+});
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+});
+</script>
 </body>
 </html>
-
