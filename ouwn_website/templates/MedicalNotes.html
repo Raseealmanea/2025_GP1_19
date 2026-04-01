@@ -163,15 +163,38 @@
        AI Predictions
        ========================= -->
   <button type="button" id="predictBtn">✨ Predict</button>
-   <div id="topkRow" class="pred-card hidden" style="margin-top:10px;">
+  
+  <div id="thresholdRow" class="pred-card hidden" style="margin-top:10px;">
     <div class="pred-header" style="margin-bottom:0;">
       <div>
-        <div class="pred-title" id="topkTitle">Top-7 Filter</div>
-        <div class="pred-sub">Shows only the first K predictions</div>
+       <div class="pred-title" style="font-weight:600;">
+        <span id="thresholdTitle">Threshold: 0.50</span>
+
+        <i class="fa-solid fa-circle-info"
+          id="thresholdInfoIcon"
+          style="cursor:pointer; font-size:20px; opacity:0.8;">
+        </i>
+      </div>
+        <div class="pred-sub">Shows predictions above selected confidence</div>
       </div>
     </div>
-    
-  <input id="topkInput" type="range" min="0" max="50" step="1" value="7" style="width:100%;">
+      <input id="thresholdInput" type="range" min="0" max="1" step="0.01" value="0.5" style="width:100%;">
+  </div>
+
+  <div id="thresholdTooltip" style="
+  display:none;
+  position:absolute;
+  background:#2b1b3a;
+  color:white;
+  padding:10px 12px;
+  border-radius:10px;
+  font-size:12px;
+  max-width:250px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.2);
+  z-index:999;
+">
+  Threshold controls which predictions are shown. 
+  Only ICD codes with confidence higher than the selected value will appear.
   </div>
   
 
@@ -224,6 +247,27 @@
 </footer>
 
 <script>
+
+  //Threshold tooltip
+window.addEventListener("load", () => {
+  const infoIcon = document.getElementById("thresholdInfoIcon");
+  const tooltip = document.getElementById("thresholdTooltip");
+
+  if (!infoIcon || !tooltip) return;
+
+  infoIcon.addEventListener("mouseenter", () => {
+    tooltip.style.display = "block";
+
+    const rect = infoIcon.getBoundingClientRect();
+    tooltip.style.top = (rect.bottom + window.scrollY + 8) + "px";
+    tooltip.style.left = (rect.left + window.scrollX) + "px";
+  });
+
+  infoIcon.addEventListener("mouseleave", () => {
+    tooltip.style.display = "none";
+  });
+});
+
    function showMessage(msg, type = "success", duration = 3000) {
   const banner = document.getElementById("saveMessage");
   banner.textContent = msg;
@@ -244,16 +288,17 @@ function showPredictions(preds) {
 
 function renderPredictions() {
   const list = document.getElementById("predictionsList");
-  const k = Number(document.getElementById("topkInput").value || 7);
+  const threshold = Number(document.getElementById("thresholdInput").value || 0.5);
 
-  document.getElementById("topkTitle").textContent = `Top-${k} Filter`;
+  document.getElementById("thresholdTitle").textContent =
+    `Threshold: ${threshold.toFixed(2)}`;
 
   list.innerHTML = "";
 
-  const shown = lastPredictions.slice(0, k);
+  const shown = lastPredictions.filter(p => (p.score || 0) >= threshold);
 
   if (!shown.length) {
-    list.innerHTML = `<div class="pred-sub">No predictions to display.</div>`;
+    list.innerHTML = `<div class="pred-sub">No predictions match the threshold.</div>`;
     return;
   }
 
@@ -279,6 +324,7 @@ function renderPredictions() {
   });
 }
 
+
 async function predictTop50() {
   const noteRaw = document.getElementById("note_text").value.trim();
 
@@ -302,7 +348,8 @@ async function predictTop50() {
   showPredictions(data.predictions);
 }
 
-document.getElementById("topkInput").addEventListener("input", renderPredictions);
+document.getElementById("thresholdInput")
+  .addEventListener("input", renderPredictions);
 
   // =========================
   // ICD Browser (your existing logic)
