@@ -21,6 +21,9 @@ from transformers import AutoTokenizer, AutoConfig, RobertaModel
 
 DEVICE = "cpu"  # change to "cuda" if you have GPU + proper torch build
 
+MODEL_MAX_LENGTH = 4000
+CHUNK_SIZE = 128
+PAD_TO_MULTIPLE = CHUNK_SIZE
 
 # ---- EXACT LabelAttention (same as repo) ----
 class LabelAttention(nn.Module):
@@ -80,32 +83,93 @@ class PLMICD(nn.Module):
         logits = self.attention(hidden_output)
         return logits
 
+def tokenize_note_for_plmicd(text: str, tokenizer, device: str):
+    """
+    Tokenize a note to match long-note PLMICD inference as closely as possible.
+
+    Training config target:
+    - data.max_length = 4000
+    - chunk_size = 128
+
+    We tokenize to 4000, then right-pad to a multiple of 128
+    so the tensor can be reshaped into (1, num_chunks, 128).
+    """
+    enc = tokenizer(
+        text,
+        padding="max_length",
+        truncation=True,
+        max_length=MODEL_MAX_LENGTH,
+        add_special_tokens=True,
+        return_tensors="pt",
+    )
+
+    input_ids = enc["input_ids"]
+    attention_mask = enc["attention_mask"]
+
+    seq_len = input_ids.size(1)
+
+    # pad to nearest multiple of CHUNK_SIZE so view(...) is valid
+    padded_len = ((seq_len + CHUNK_SIZE - 1) // CHUNK_SIZE) * CHUNK_SIZE
+    pad_len = padded_len - seq_len
+
+    if pad_len > 0:
+        pad_token_id = tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = 1  # RoBERTa config uses pad_token_id=1
+
+        input_ids = torch.nn.functional.pad(
+            input_ids,
+            (0, pad_len),
+            mode="constant",
+            value=pad_token_id,
+        )
+        attention_mask = torch.nn.functional.pad(
+            attention_mask,
+            (0, pad_len),
+            mode="constant",
+            value=0,
+        )
+
+    num_chunks = input_ids.size(1) // CHUNK_SIZE
+
+    input_ids = input_ids.view(1, num_chunks, CHUNK_SIZE).to(device)
+    attention_mask = attention_mask.view(1, num_chunks, CHUNK_SIZE).to(device)
+
+    return input_ids, attention_mask, num_chunks
 import re
 
 def preprocess_note_text_exact(text: str) -> str:
     """
-    Approximation of JoakimEdin prepare_mimiciv.py preprocessing:
-    - lower=True
-    - remove_digits=True
-    - mullenbach-style cleanup (keep letters, spaces; normalize separators)
+    Closer deployment:
+    - lowercase
+    - normalize whitespace
+    - remove digits
+    - keep alphabetic clinical text and common punctuation
+    - preserve separators often seen in notes
     """
     if text is None:
         return ""
 
     s = str(text).lower()
 
-    # ✅ IMPORTANT (matches training): remove digits
+    # normalize line breaks/tabs first
+    s = s.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+
+    # remove digits (closer to your stated training assumptions)
     s = re.sub(r"\d+", " ", s)
 
-    # mullenbach-ish: normalize common separators to spaces
-    s = s.replace("\n", " ").replace("\t", " ")
+    # normalize common separators to spaces around them
+    s = re.sub(r"[_|]+", " ", s)
 
-    # remove weird characters but keep letters and basic punctuation if you want:
-    # (this is safer than deleting everything not A-Za-z0-9)
+    # keep letters + spaces + common punctuation used in clinical notes
     s = re.sub(r"[^a-z\s\.,;:\-\(\)\/]+", " ", s)
 
-    # collapse spaces
+    # collapse repeated punctuation spacing
+    s = re.sub(r"\s*([.,;:/()\-\]])\s*", r" \1 ", s)
+
+    # collapse whitespace
     s = re.sub(r"\s+", " ", s).strip()
+
     return s
 
 
@@ -1379,7 +1443,6 @@ def create_app():
         if not raw_text:
             return jsonify({"status": "error", "message": "Empty note"}), 400
 
-        
         try:
             k = int(data.get("top_k", 50))
         except Exception:
@@ -1390,29 +1453,17 @@ def create_app():
         if not clean_text:
             return jsonify({"status": "error", "message": "Note became empty after preprocessing"}), 400
 
-        enc = tokenizer(
+        input_ids, attention_mask, num_chunks = tokenize_note_for_plmicd(
             clean_text,
-            padding="max_length",
-            truncation=True,
-            max_length=512,
-            add_special_tokens=True,
-            return_tensors="pt",
+            tokenizer,
+            DEVICE
         )
-
-        input_ids = enc["input_ids"].to(DEVICE)
-        attention_mask = enc["attention_mask"].to(DEVICE)
-
-        chunk_size = 128
-        num_chunks = 512 // chunk_size
-
-        input_ids = input_ids.view(1, num_chunks, chunk_size)
-        attention_mask = attention_mask.view(1, num_chunks, chunk_size)
 
         with torch.no_grad():
             logits = model(input_ids=input_ids, attention_mask=attention_mask)
             probs = torch.sigmoid(logits)[0].detach().cpu()
 
-        vals, inds = torch.topk(probs, k=k)
+        vals, inds = torch.topk(probs, k=min(k, probs.numel()))
 
         predictions = []
         for s, i in zip(vals.tolist(), inds.tolist()):
@@ -1425,12 +1476,14 @@ def create_app():
             "status": "success",
             "predictions": predictions,
             "default_threshold": float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5),
-            "top_k": k
+            "top_k": k,
+            "model_max_length": MODEL_MAX_LENGTH,
+            "chunk_size": CHUNK_SIZE,
+            "num_chunks": num_chunks
         })
     return app
 
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True, use_reloader=False, port=5001)
-
+    app.run(debug=True, use_reloader=False, port=5002)
