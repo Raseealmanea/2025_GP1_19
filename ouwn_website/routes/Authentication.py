@@ -19,6 +19,8 @@ import re # Needed for validating email, username formats
 import os # Needed for BREVO_API_KEY, BREVO_SENDER
 import requests # Needed for sending emails using Brevo API
 import threading # Needed for send_email_async() background thread
+import traceback
+
 
 
 #  Blueprint
@@ -60,13 +62,18 @@ def send_brevo_email(to_email: str, subject: str, html: str, text: str = None):
     }
 
     try:
-        res = requests.post(BREVO_ENDPOINT, json=payload, headers=headers)
-        if res.status_code >= 400:
-            print("❌ Brevo error:", res.text)
-        else:
-            print("✅ Email sent:", res.json())
+        print("Sending to Brevo...")
+        res = requests.post(
+            BREVO_ENDPOINT,
+            json=payload,
+            headers=headers,
+            timeout=30
+        )
+        print("Status:", res.status_code)
+        print("Response:", res.text)
     except Exception as e:
-        print("❌ Email send failed:", e)
+        print("❌ Email send failed:", repr(e))
+        traceback.print_exc()
 
 # Sends email in a background thread so Flask does not wait for it
 def send_email_async(to, subject, html, text=None):
@@ -196,7 +203,7 @@ def signup():
         </html>
         """
 
-        send_email_async(email, subject, html)
+        send_brevo_email(email, subject, html)
 
         flash(" Check your email to confirm.", "success")
         return redirect(url_for("Authentication.login"))
