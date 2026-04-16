@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ICD Prediction Analysis</title>
+  <link rel="stylesheet" href="/static/style.css">
+
+  <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+
+ 
+
+  <style>
+  .analysis-wrap {
+    max-width: 1120px;
+    width: 100%;
+    margin: 24px auto 40px;
+    padding: 0 24px;
+    box-sizing: border-box;
+  }
+
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  /* =========================
+     VALUE BOXES / SUMMARY CARDS
+     ========================= */
+  .analysis-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, #fff, rgba(244, 241, 251, 0.8));
+    border: 2px solid rgba(139, 92, 246, 0.15);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.12);
+    transition: 0.3s;
+  }
+
+  .analysis-card:hover {
+    transform: translateY(-0.35rem);
+    border-color: rgba(139, 92, 246, 0.35);
+    box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.18);
+  }
+
+  .analysis-card h3 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d1b4e;
+    font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.2;
+  }
+
+  .analysis-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #2d1b4e;
+    font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.1;
+  }
+
+  .analysis-sub {
+    margin-top: 0.6rem;
+    font-size: 0.98rem;
+    color: #6d5b86;
+    font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.35;
+  }
+
+  /* =========================
+     SECTION BOXES
+     ========================= */
+  .section-box {
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(120, 80, 160, 0.18);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+
+  .section-box h2 {
+    margin: 0 0 14px;
+    color: #2d004d;
+    font-size: 22px;
+  }
+
+  .range-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .range-row {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(244,241,251,0.95);
+    border: 1px solid rgba(153,117,193,0.18);
+  }
+
+  .range-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .range-label {
+    font-weight: 800;
+    color: #2d004d;
+  }
+
+  .range-stats {
+    font-size: 13px;
+    color: #6d5b86;
+  }
+
+  .bar-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #7b4bb7, #b08df7);
+  }
+
+  /* =========================
+     TOOLBARS / INPUTS
+     ========================= */
+  .table-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #6d5b86;
+  }
+
+  .sort-select,
+  .search-input,
+  .stats-input {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(120, 80, 160, 0.25);
+    background: white;
+    color: #2d004d;
+    font-size: 14px;
+    font-weight: 600;
+    outline: none;
+  }
+
+  .sort-select {
+    cursor: pointer;
+  }
+
+  .search-input {
+    width: 220px;
+  }
+
+  .stats-input {
+    width: 220px;
+  }
+
+  .search-input::placeholder,
+  .stats-input::placeholder {
+    color: #8d7aa7;
+    font-weight: 500;
+  }
+
+  .sort-select:focus,
+  .search-input:focus,
+  .stats-input:focus {
+    border-color: #9975C1;
+    box-shadow: 0 0 0 2px rgba(153, 117, 193, 0.15);
+  }
+
+  /* =========================
+     TABLE
+     ========================= */
+  .analysis-table-wrap {
+    overflow-x: auto;
+  }
+
+  .analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 760px;
+  }
+
+  .analysis-table th,
+  .analysis-table td {
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    font-size: 14px;
+  }
+
+  .analysis-table th {
+    color: #6d5b86;
+    font-weight: 700;
+  }
+
+  .analysis-table td strong {
+    color: #2d004d;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 28px;
+    color: #6d5b86;
+    font-size: 15px;
+  }
+
+  /* =========================
+     STATS AREA
+     ========================= */
+  .stats-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .stats-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .toggle-btn,
+  .generate-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .toggle-btn {
+    background: rgba(244,241,251,0.95);
+    color: #5e4a78;
+    border: 1px solid rgba(153,117,193,0.22);
+  }
+
+  .toggle-btn.active {
+    background: linear-gradient(90deg, #7b4bb7, #b08df7);
+    color: white;
+    border-color: transparent;
+  }
+
+  .generate-btn {
+    background: #2d004d;
+    color: white;
+  }
+
+  .generate-btn:hover {
+    opacity: 0.92;
+  }
+
+  .stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .chart-wrap {
+    background: rgba(244,241,251,0.65);
+    border: 1px solid rgba(153,117,193,0.16);
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 360px;
+  }
+
+  .chart-canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: 340px;
+  }
+
+  .helper-text {
+    color: #6d5b86;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  /* =========================
+     DARK MODE
+     EXACTLY FOR THE VALUE BOXES
+     ========================= */
+  body.dark-mode .analysis-card {
+    background: #5a4a78;
+    border: 2px solid rgba(139, 92, 246, 0.18);
+    border-radius: 1rem;
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.12);
+    backdrop-filter: none;
+  }
+
+  body.dark-mode .analysis-card:hover {
+    transform: translateY(-0.35rem);
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.2);
+  }
+
+  body.dark-mode .analysis-card h3 {
+    color: #d8c9f5;
+  }
+
+  body.dark-mode .analysis-card .analysis-value {
+    color: #f3ecff;
+  }
+
+  body.dark-mode .analysis-card .analysis-sub {
+    color: #e3d8f7;
+  }
+
+  body.dark-mode .section-box {
+    background: rgba(42, 31, 62, 0.92);
+    border: 1px solid rgba(139, 92, 246, 0.16);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.18);
+  }
+
+  body.dark-mode .section-box h2,
+  body.dark-mode .range-label,
+  body.dark-mode .analysis-table td strong {
+    color: #d8c9f5;
+  }
+
+  body.dark-mode .toolbar-label,
+  body.dark-mode .range-stats,
+  body.dark-mode .empty-state,
+  body.dark-mode .helper-text,
+  body.dark-mode .analysis-table th,
+  body.dark-mode .analysis-sub {
+    color: #cbbce6;
+  }
+
+  body.dark-mode .range-row,
+  body.dark-mode .chart-wrap {
+    background: rgba(58, 46, 82, 0.9);
+    border: 1px solid rgba(139, 92, 246, 0.14);
+  }
+
+  body.dark-mode .bar-track {
+    background: rgba(255,255,255,0.09);
+  }
+
+  body.dark-mode .sort-select,
+  body.dark-mode .search-input,
+  body.dark-mode .stats-input {
+    background: #332747;
+    color: #f3ecff;
+    border: 1px solid rgba(139, 92, 246, 0.18);
+  }
+
+  body.dark-mode .search-input::placeholder,
+  body.dark-mode .stats-input::placeholder {
+    color: #bbaed6;
+  }
+
+  body.dark-mode .analysis-table th,
+  body.dark-mode .analysis-table td {
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #ece4fb;
+  }
+
+  body.dark-mode .toggle-btn {
+    background: #4d3b6c;
+    color: #efe8ff;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+  }
+
+  body.dark-mode .toggle-btn.active {
+    background: linear-gradient(90deg, #7b4bb7, #b08df7);
+    color: white;
+  }
+
+  body.dark-mode .generate-btn {
+    background: #7f63ae;
+    color: #fff;
+  }
+
+  body.dark-mode .generate-btn:hover {
+    background: #9172c4;
+    opacity: 1;
+  }
+
+  /* =========================
+     RESPONSIVE
+     ========================= */
+  @media (max-width: 768px) {
+    .analysis-wrap {
+      padding: 0 16px;
+    }
+
+    .analysis-value {
+      font-size: 26px;
+    }
+
+    .section-box {
+      padding: 16px;
+    }
+
+    .table-toolbar {
+      justify-content: flex-start;
+    }
+
+    .search-input,
+    .stats-input {
+      width: 100%;
+      max-width: 260px;
+    }
+
+    .chart-canvas-wrap {
+      height: 300px;
+    }
+  }
+</style>
+</head>
+<body class="form-page medical-note">
+
+{% include "header.html" %}
+
+<nav class="ouwn-breadcrumb-bar" role="navigation">
+  <div class="ouwn-crumbs">
+    <a class="crumb" href="{{ url_for('dashboard') }}">
+      <i class="fa-solid fa-house"></i> <span>Dashboard</span>
+    </a>
+    <span class="sep">/</span>
+    <span class="crumb current">
+      <i class="fa-solid fa-chart-column"></i> <span>ICD Prediction Analysis</span>
+    </span>
+  </div>
+</nav>
+
+<main class="analysis-wrap">
+  <h1 style="margin-bottom:18px;">ICD Prediction Analysis</h1>
+
+  <div id="summaryCards" class="analysis-grid">
+  <div class="analysis-card">
+    <h3>Loading</h3>
+    <div class="analysis-value">...</div>
+    <div class="analysis-sub">Loading analysis summary...</div>
+  </div>
+  <div class="analysis-card">
+    <h3>Loading</h3>
+    <div class="analysis-value">...</div>
+    <div class="analysis-sub">Loading analysis summary...</div>
+  </div>
+  <div class="analysis-card">
+    <h3>Loading</h3>
+    <div class="analysis-value">...</div>
+    <div class="analysis-sub">Loading analysis summary...</div>
+  </div>
+  <div class="analysis-card">
+    <h3>Loading</h3>
+    <div class="analysis-value">...</div>
+    <div class="analysis-sub">Loading analysis summary...</div>
+  </div>
+  <div class="analysis-card">
+    <h3>Loading</h3>
+    <div class="analysis-value">...</div>
+    <div class="analysis-sub">Loading analysis summary...</div>
+  </div>
+</div>
+
+<div class="section-box">
+  <h2>Adjusted ICD Code Insights</h2>
+
+  <div id="adjustedInsightsCards" class="analysis-grid">
+    <div class="analysis-card">
+      <h3>Loading</h3>
+      <div class="analysis-value">...</div>
+      <div class="analysis-sub">Loading adjusted ICD insights...</div>
+    </div>
+    <div class="analysis-card">
+      <h3>Loading</h3>
+      <div class="analysis-value">...</div>
+      <div class="analysis-sub">Loading adjusted ICD insights...</div>
+    </div>
+    <div class="analysis-card">
+      <h3>Loading</h3>
+      <div class="analysis-value">...</div>
+      <div class="analysis-sub">Loading adjusted ICD insights...</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap" style="margin-top: 16px;">
+    <div class="chart-canvas-wrap">
+      <canvas id="adjustedIcdChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="section-box">
+    <h2>Patient Statistics by ICD Code</h2>
+
+    <div class="stats-toolbar">
+  <div class="stats-row">
+    <label for="statsCodeInput" class="toolbar-label">ICD code</label>
+    <input
+      type="text"
+      id="statsCodeInput"
+      class="stats-input"
+      placeholder="e.g. K71.3"
+    >
+  </div>
+
+  <div class="stats-row">
+    <span class="toolbar-label">Statistic Type</span>
+    <div class="stats-button-group" id="statTypeButtons">
+      <button type="button" class="toggle-btn active" data-stat-type="gender">Gender</button>
+      <button type="button" class="toggle-btn" data-stat-type="age">Age</button>
+      <button type="button" class="toggle-btn" data-stat-type="blood_type">Blood Type</button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <span class="toolbar-label">Chart type</span>
+    <div class="stats-button-group" id="graphTypeButtons">
+      <button type="button" class="toggle-btn active" data-graph-type="pie">Pie Chart</button>
+      <button type="button" class="toggle-btn" data-graph-type="bar">Bar Chart</button>
+    </div>
+
+    <button type="button" class="generate-btn" id="generateStatsBtn">Generate</button>
+  </div>
+</div>
+
+    <div class="helper-text">
+      Counts unique patients once if the ICD code appears in either Adjusted or Predicted codes.
+    </div>
+
+    <div id="statsSummary" class="stats-summary" style="margin-top:16px;"></div>
+
+    <div class="chart-wrap">
+      <div class="chart-canvas-wrap">
+        <canvas id="patientStatsChart"></canvas>
+      </div>
+      <div id="statsEmptyState" class="empty-state">Enter an ICD code and generate a chart.</div>
+    </div>
+  </div>
+
+  <div class="section-box">
+    <h2>Acceptance by Confidence Range</h2>
+    <div id="confidenceRanges" class="range-list">
+  <div class="empty-state">Loading confidence ranges...</div>
+</div>
+  </div>
+
+  <div class="section-box">
+    <h2>Top ICD Codes</h2>
+
+    <div class="table-toolbar">
+      <label for="codeSearch" class="toolbar-label">Search by ICD code</label>
+      <input
+        type="text"
+        id="codeSearch"
+        class="search-input"
+        placeholder="e.g. I82, K71..."
+      >
+
+      <label for="sortMode" class="toolbar-label">Sort by</label>
+      <select id="sortMode" class="sort-select">
+        <option value="acceptance">Acceptance Rate</option>
+        <option value="icd">ICD Code</option>
+      </select>
+    </div>
+
+    <div class="analysis-table-wrap">
+      <table class="analysis-table">
+        <thead>
+          <tr>
+            <th>ICD Code</th>
+            <th>Total Predictions</th>
+            <th>Accepted</th>
+            <th>Acceptance Rate</th>
+            <th>Average Confidence</th>
+           
+          </tr>
+        </thead>
+        <tbody id="codeTableBody">
+  <tr>
+    <td colspan="5" class="empty-state">Loading ICD code table...</td>
+  </tr>
+</tbody>
+      </table>
+    </div>
+  </div>
+
+  
+</main>
+
+<footer>
+  <p>&copy; 2025 OuwN. All Rights Reserved.</p>
+</footer>
+
+<script>
+  let allCodes = [];
+  let selectedStatType = "gender";
+  let selectedGraphType = "pie";
+  let patientStatsChart = null;
+
+  function createCard(title, value, sub = "") {
+    return `
+      <div class="analysis-card">
+        <h3>${title}</h3>
+        <div class="analysis-value">${value}</div>
+        <div class="analysis-sub">${sub}</div>
+      </div>
+    `;
+  }
+
+  function icdSortKey(code) {
+    const clean = String(code || "").trim().toUpperCase();
+    const match = clean.match(/^([A-Z0-9]+?)(\d+)(?:\.(.*))?$/);
+
+    if (!match) {
+      return {
+        prefix: clean,
+        main: Number.MAX_SAFE_INTEGER,
+        sub: clean
+      };
+    }
+
+    return {
+      prefix: match[1],
+      main: parseInt(match[2], 10),
+      sub: match[3] || ""
+    };
+  }
+
+  function compareICD(a, b) {
+    const ka = icdSortKey(a.code);
+    const kb = icdSortKey(b.code);
+
+    if (ka.prefix !== kb.prefix) return ka.prefix.localeCompare(kb.prefix);
+    if (ka.main !== kb.main) return ka.main - kb.main;
+
+    return ka.sub.localeCompare(kb.sub, undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  function compareAcceptance(a, b) {
+  if (b.acceptance_rate !== a.acceptance_rate) return b.acceptance_rate - a.acceptance_rate;
+  if (b.total !== a.total) return b.total - a.total;
+  return compareICD(a, b);
+}
+
+  function renderCodeTable() {
+    const tbody = document.getElementById("codeTableBody");
+    const sortMode = document.getElementById("sortMode")?.value || "acceptance";
+    const searchTerm = (document.getElementById("codeSearch")?.value || "").trim().toUpperCase();
+
+    let codes = [...allCodes];
+
+    if (searchTerm) {
+      codes = codes.filter(item =>
+        String(item.code || "").toUpperCase().startsWith(searchTerm)
+      );
+    }
+
+    if (sortMode === "icd") {
+      codes.sort(compareICD);
+    } else {
+      codes.sort(compareAcceptance);
+    }
+
+    if (!codes.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">No matching ICD codes found.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = codes.map(item => `
+      <tr>
+        <td><strong>${item.code}</strong></td>
+        <td>${item.total}</td>
+        <td>${item.accepted}</td>
+        <td>${item.acceptance_rate}%</td>
+        <td>${item.avg_confidence}%</td>
+       
+      </tr>
+    `).join("");
+  }
+
+  async function loadAnalysis() {
+    const res = await fetch("/api/icd_analysis_summary");
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.status !== "success") {
+      document.getElementById("summaryCards").innerHTML = `
+        <div class="section-box empty-state">Failed to load analysis data.</div>
+      `;
+      return;
+    }
+
+    const summary = data.summary || {};
+    const ranges = data.confidence_ranges || [];
+    allCodes = data.per_code || [];
+    const adjustedInsights = data.adjusted_icd_insights || {};
+
+    document.getElementById("summaryCards").innerHTML = `
+      ${createCard("Total Predictions", summary.total_predictions ?? 0, "All stored model predictions")}
+      ${createCard("Accepted Predictions", summary.total_accepted ?? 0, "Predictions checked by users")}
+      ${createCard("Overall Acceptance", `${summary.overall_acceptance_rate ?? 0}%`, "Accepted ÷ total predictions")}
+      ${createCard("Average Confidence", `${summary.average_confidence ?? 0}%`, "Average model confidence")}
+      ${createCard("Average Chosen Threshold", `${summary.average_threshold ?? 0}%`, "Saved threshold from users")}
+    `;
+
+    document.getElementById("adjustedInsightsCards").innerHTML = `
+      ${createCard("Model Miss Rate", `${adjustedInsights.model_miss_rate ?? 0}%`, "Adjusted codes not predicted by the model")}
+      ${createCard("Adjusted-only Codes Count", adjustedInsights.adjusted_only_codes_count ?? 0, "Codes manually added because the model missed them")}
+      ${createCard("Total ICD Codes Saved", adjustedInsights.total_saved_icd_codes ?? 0, "Predicted codes plus manually added adjusted codes")}
+    `;
+    renderAdjustedIcdChart(adjustedInsights);
+
+    const rangesContainer = document.getElementById("confidenceRanges");
+    if (!ranges.length || Number(summary.total_predictions || 0) === 0) {
+      rangesContainer.innerHTML = `
+        <div class="empty-state">
+          No analysis data yet. Save a few new notes first so the system can store full prediction feedback.
+        </div>
+      `;
+    } else {
+      rangesContainer.innerHTML = ranges.map(item => `
+        <div class="range-row">
+          <div class="range-head">
+            <div class="range-label">${item.label}</div>
+            <div class="range-stats">
+              ${item.accepted} accepted / ${item.total} predictions · Avg confidence ${item.avg_confidence}%
+            </div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${item.acceptance_rate}%;"></div>
+          </div>
+          <div class="analysis-sub" style="margin-top:8px;">
+            Acceptance rate: <strong>${item.acceptance_rate}%</strong>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    renderCodeTable();
+  }
+
+  function setActiveButton(groupSelector, valueKey, value) {
+    document.querySelectorAll(groupSelector).forEach(btn => {
+      btn.classList.toggle("active", btn.dataset[valueKey] === value);
+    });
+  }
+
+  function destroyStatsChart() {
+    if (patientStatsChart) {
+      patientStatsChart.destroy();
+      patientStatsChart = null;
+    }
+  }
+
+  function renderStatsSummary(data) {
+    const summaryBox = document.getElementById("statsSummary");
+    summaryBox.innerHTML = `
+      ${createCard("ICD Code", data.code || "-", "Searched code")}
+      ${createCard("Statistic Type", (data.stat_type || "-").replace("_", " "), "Selected analysis")}
+      ${createCard("Total Patients", data.total_patients ?? 0, "Unique matched patients")}
+      ${createCard("Average Age", data.average_age ?? "N/A", "Across matched patients")}
+    `;
+  }
+
+  function renderPatientStatsChart(data) {
+    const emptyState = document.getElementById("statsEmptyState");
+    const canvas = document.getElementById("patientStatsChart");
+
+    destroyStatsChart();
+
+    if (!data.labels || !data.labels.length) {
+      emptyState.style.display = "block";
+      emptyState.textContent = "No matching patient statistics found for this ICD code.";
+      document.getElementById("statsSummary").innerHTML = "";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    renderStatsSummary(data);
+
+    const chartColors = [
+  "#7b4bb7",
+  "#b08df7",
+  "#8ec5fc",
+  "#f9a8d4",
+  "#86efac",
+  "#fcd34d",
+  "#fca5a5",
+  "#93c5fd",
+  "#c4b5fd",
+  "#fdba74"
+];
+
+patientStatsChart = new Chart(canvas, {
+  type: selectedGraphType,
+  data: {
+    labels: data.labels,
+    datasets: [{
+      label: `${data.code} - ${data.stat_type.replace("_", " ")}`,
+      data: data.values,
+      backgroundColor: data.labels.map((_, index) => chartColors[index % chartColors.length] + "CC"),
+      borderColor: data.labels.map((_, index) => chartColors[index % chartColors.length]),
+      borderWidth: 2 ,
+      borderRadius: 0,
+    }]
+  },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: "top"
+          },
+          title: {
+            display: true,
+            text: `Patient Statistics for ${data.code}`
+          }
+        },
+        scales: selectedGraphType === "bar" ? {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        } : {}
+      }
+    });
+  }
+
+  async function generatePatientStats() {
+    const code = (document.getElementById("statsCodeInput")?.value || "").trim().toUpperCase();
+    const emptyState = document.getElementById("statsEmptyState");
+
+
+    destroyStatsChart();
+    document.getElementById("statsSummary").innerHTML = "";
+    emptyState.style.display = "block";
+    emptyState.textContent = "Loading patient statistics...";
+
+
+    if (!code) {
+      destroyStatsChart();
+      document.getElementById("statsSummary").innerHTML = "";
+      emptyState.style.display = "block";
+      emptyState.textContent = "Please enter an ICD code first.";
+      return;
+    }
+
+    const url = `/api/icd_patient_statistics?code=${encodeURIComponent(code)}&stat_type=${encodeURIComponent(selectedStatType)}`;
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.status !== "success") {
+      destroyStatsChart();
+      document.getElementById("statsSummary").innerHTML = "";
+      emptyState.style.display = "block";
+      emptyState.textContent = data.message || "Failed to load patient statistics.";
+      return;
+    }
+
+    renderPatientStatsChart(data);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadAnalysis();
+
+    document.getElementById("sortMode")?.addEventListener("change", renderCodeTable);
+    document.getElementById("codeSearch")?.addEventListener("input", renderCodeTable);
+
+    document.querySelectorAll("#statTypeButtons .toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedStatType = btn.dataset.statType;
+        setActiveButton("#statTypeButtons .toggle-btn", "statType", selectedStatType);
+      });
+    });
+
+    document.querySelectorAll("#graphTypeButtons .toggle-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedGraphType = btn.dataset.graphType;
+        setActiveButton("#graphTypeButtons .toggle-btn", "graphType", selectedGraphType);
+      });
+    });
+
+    document.getElementById("generateStatsBtn")?.addEventListener("click", generatePatientStats);
+  });
+
+
+
+  let adjustedIcdChart = null;
+
+function renderAdjustedIcdChart(adjustedInsights) {
+  const canvas = document.getElementById("adjustedIcdChart");
+  if (!canvas) return;
+
+  if (adjustedIcdChart) {
+    adjustedIcdChart.destroy();
+    adjustedIcdChart = null;
+  }
+
+  adjustedIcdChart = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: ["Predicted by Model", "Added Manually"],
+      datasets: [{
+        label: "ICD Codes Count",
+        data: [
+          adjustedInsights.predicted_saved_codes ?? 0,
+          adjustedInsights.added_adjusted_codes ?? 0
+        ],
+        backgroundColor: ["#7b4bb7", "#b08df7"],
+        borderColor: ["#7b4bb7", "#b08df7"],
+        borderWidth: 2,
+        borderRadius: 10
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: true,
+          text: `Total ICD Codes Saved: ${adjustedInsights.total_saved_icd_codes ?? 0}`
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+
+</body>
+</html>
