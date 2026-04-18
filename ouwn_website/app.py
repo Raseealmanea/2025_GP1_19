@@ -10,7 +10,7 @@ from firebase.Initialization import db
 
 import whisper
 import hashlib
- 
+from collections import defaultdict
 
 # ----------------------------
 # ML imports (ICD model)
