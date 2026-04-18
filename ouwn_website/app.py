@@ -591,71 +591,151 @@ def create_app():
                 return redirect(url_for("dashboard", msg="added"))
 
         return render_template("add_patient.html", errors=errors)
-
-
-    # MEDICAL NOTES + ICD CODES
+     
+   # MEDICAL NOTES + ICD CODES
     @app.route("/MedicalNotes", methods=["GET", "POST"])
     def add_note():
-            if "user_id" not in session:
-                return redirect(url_for("Authentication.login"))
-    
-            if request.method == "GET":
-                pid = request.args.get("pid", "").strip()
-                patient_name = ""
-    
-                if pid:
-                    doc = db.collection("Patient").document(pid).get()
-                    if doc.exists:
-                        patient_name = (doc.to_dict() or {}).get("FullName", "")
-    
-                return render_template(
-                    "MedicalNotes.html",
-                    prefilled_pid=pid,
-                    prefilled_name=patient_name,
-                    note_text="",
-                    selected_icd_codes=[]
-                )
-    
-            try:
-                data = request.get_json(silent=True) or request.form or {}
-                pid = (data.get("pid") or "").strip()
-                note_text = (data.get("note_text") or "").strip()
-                icd_codes = data.get("icd_codes", []) or []
-                predicted_codes = data.get("predicted_codes", []) or []
-    
-                if not pid or not note_text:
-                    return jsonify({"status": "error", "message": "Missing fields"}), 400
-    
-                if len(icd_codes) == 0 and len(predicted_codes) == 0:
-                    return jsonify({"status": "error", "message": "Please select at least one ICD code"}), 400
-    
-                patient_ref = db.collection("Patient").document(pid)
-    
-                note_id = "note_id_" + uuid.uuid4().hex[:8]
-                note_ref = patient_ref.collection("MedicalNote").document(note_id)
-    
-                note_ref.set({
-                    "NoteID": note_id,
-                    "Note": note_text,
-                    "CreatedDate": datetime.now(),
-                    "CreatedBy": session.get("user_id")
+        if "user_id" not in session:
+            return redirect(url_for("Authentication.login"))
+
+        if request.method == "GET":
+            pid = request.args.get("pid", "").strip()
+            patient_name = ""
+
+            if pid:
+                doc = db.collection("Patient").document(pid).get()
+                if doc.exists:
+                    patient_name = (doc.to_dict() or {}).get("FullName", "")
+
+            return render_template(
+                "MedicalNotes.html",
+                prefilled_pid=pid,
+                prefilled_name=patient_name,
+                note_text="",
+                selected_icd_codes=[]
+            )
+
+        try:
+            data = request.get_json(silent=True) or request.form or {}
+
+            pid = (data.get("pid") or "").strip()
+            note_text = (data.get("note_text") or "").strip()
+            icd_codes = data.get("icd_codes", []) or []
+            predicted_codes = data.get("predicted_codes", []) or []
+            prediction_analysis = data.get("prediction_analysis", []) or []
+
+            if not pid or not note_text:
+                return jsonify({"status": "error", "message": "Missing fields"}), 400
+
+            if len(icd_codes) == 0 and len(predicted_codes) == 0:
+                return jsonify({"status": "error", "message": "Please select at least one ICD code"}), 400
+
+            # Clean adjusted codes
+            cleaned_adjusted = []
+            seen_adjusted = set()
+
+            for item in icd_codes:
+                if isinstance(item, dict):
+                    code = str(item.get("Code", "")).strip().upper()
+                else:
+                    code = str(item).strip().upper()
+
+                if code and code not in seen_adjusted:
+                    cleaned_adjusted.append({"Code": code})
+                    seen_adjusted.add(code)
+
+            # Clean predicted codes
+            cleaned_predicted = []
+            seen_predicted = set()
+
+            for code in predicted_codes:
+                c = str(code).strip().upper()
+                if c and c not in seen_predicted:
+                    cleaned_predicted.append(c)
+                    seen_predicted.add(c)
+
+            # Clean prediction analysis
+            cleaned_analysis = []
+            for item in prediction_analysis:
+                if not isinstance(item, dict):
+                    continue
+
+                code = str(item.get("Code", "")).strip().upper()
+                if not code:
+                    continue
+
+                try:
+                    confidence = float(item.get("Confidence", 0))
+                except Exception:
+                    confidence = 0.0
+
+                try:
+                    threshold_at_save = float(item.get("ThresholdAtSave", 0.5))
+                except Exception:
+                    threshold_at_save = 0.5
+
+                try:
+                    rank = int(item.get("Rank", 0))
+                except Exception:
+                    rank = 0
+
+                confidence = max(0.0, min(confidence, 1.0))
+                threshold_at_save = max(0.0, min(threshold_at_save, 1.0))
+
+                cleaned_analysis.append({
+                    "Code": code,
+                    "Confidence": confidence,
+                    "Selected": bool(item.get("Selected", False)),
+                    "VisibleAtSave": bool(item.get("VisibleAtSave", False)),
+                    "ThresholdAtSave": threshold_at_save,
+                    "Rank": rank
                 })
-    
-                icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
-                icd_ref = note_ref.collection("ICDcode").document(icd_id)
-    
-                icd_ref.set({
-                    "ICD_ID": icd_id,
-                    "Adjusted": [c["Code"] for c in icd_codes],
-                    "Predicted": predicted_codes,
-                    "AdjustedBy": session.get("user_id"),
-                    "AdjustedAt": datetime.now()
-                })
-    
-                return jsonify({"status": "success", "redirect": url_for("dashboard")})
-    
-            except Exception as e:
-                return jsonify({"status": "error", "message": str(e)}), 500
+
+            patient_ref = db.collection("Patient").document(pid)
+
+            note_id = "note_id_" + uuid.uuid4().hex[:8]
+            note_ref = patient_ref.collection("MedicalNote").document(note_id)
+
+            now = datetime.now()
+
+            note_ref.set({
+                "NoteID": note_id,
+                "Note": note_text,
+                "CreatedDate": now,
+                "CreatedBy": session.get("user_id")
+            })
+
+            icd_id = "icdcode_id_" + uuid.uuid4().hex[:8]
+            icd_ref = note_ref.collection("ICDcode").document(icd_id)
+
+            accepted_count = sum(1 for x in cleaned_analysis if x.get("Selected"))
+            total_predictions = len(cleaned_analysis)
+
+            avg_threshold = 0.5
+            if cleaned_analysis:
+                avg_threshold = sum(
+                    float(x.get("ThresholdAtSave", 0.5)) for x in cleaned_analysis
+                ) / len(cleaned_analysis)
+
+            icd_ref.set({
+                "ICD_ID": icd_id,
+                "Adjusted": [c["Code"] for c in cleaned_adjusted],
+                "Predicted": cleaned_predicted,
+                "Analysis": cleaned_analysis,
+                "AnalysisSummary": {
+                    "TotalPredictions": total_predictions,
+                    "AcceptedPredictions": accepted_count,
+                    "AcceptanceRate": (accepted_count / total_predictions) if total_predictions else 0,
+                    "AverageThresholdAtSave": avg_threshold
+                },
+                "AdjustedBy": session.get("user_id"),
+                "AdjustedAt": now
+            })
+
+            return jsonify({"status": "success", "redirect": url_for("dashboard")})
+
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
  # AJAX CHECK ID
     @app.route("/check_id")
     def check_id():
@@ -1291,7 +1371,207 @@ def create_app():
             })
 
         return redirect(url_for("view_patient", pid=pid, saved="1" if changed else "0"))
+         #Analysis summary for dashboard
+    @app.route("/icd_analysis")
+    def icd_analysis():
+        if "user_id" not in session:
+            return redirect(url_for("Authentication.login"))
+        return render_template("icd_analysis.html")
 
+
+    @app.route("/api/icd_analysis_summary")
+    def icd_analysis_summary():
+        if "user_id" not in session:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        def confidence_bucket_label(confidence_percent):
+            if confidence_percent <= 20:
+                return "0-20%"
+            elif confidence_percent <= 40:
+                return "21-40%"
+            elif confidence_percent <= 60:
+                return "41-60%"
+            elif confidence_percent <= 80:
+                return "61-80%"
+            return "81-100%"
+
+        bucket_order = ["0-20%", "21-40%", "41-60%", "61-80%", "81-100%"]
+        bucket_stats = {
+            label: {
+                "label": label,
+                "total": 0,
+                "accepted": 0,
+                "avg_confidence_sum": 0.0
+            }
+            for label in bucket_order
+        }
+
+        per_code = defaultdict(lambda: {
+            "code": "",
+            "total": 0,
+            "accepted": 0,
+            "confidence_sum": 0.0,
+            "visible_count": 0
+        })
+
+        total_predictions = 0
+        total_accepted = 0
+        confidence_sum = 0.0
+        threshold_sum = 0.0
+        threshold_count = 0
+        visible_predictions = 0
+        visible_accepted = 0
+        docs_with_analysis = 0
+        total_icd_docs = 0
+
+        # Adjusted = manually added from search/browser
+        # Predicted = accepted AI codes
+        total_adjusted_codes = 0
+        total_predicted_saved_codes = 0
+        total_saved_icd_codes = 0
+        total_added_adjusted_codes = 0
+
+        patients = db.collection("Patient").stream()
+
+        for patient in patients:
+            notes = patient.reference.collection("MedicalNote").stream()
+
+            for note in notes:
+                icd_docs = note.reference.collection("ICDcode").stream()
+
+                for icd_doc in icd_docs:
+                    total_icd_docs += 1
+                    icd_data = icd_doc.to_dict() or {}
+
+                    analysis_rows = icd_data.get("Analysis", []) or []
+
+                    adjusted_codes = {
+                        str(x).strip().upper()
+                        for x in (icd_data.get("Adjusted", []) or [])
+                        if str(x).strip()
+                    }
+
+                    predicted_codes = {
+                        str(x).strip().upper()
+                        for x in (icd_data.get("Predicted", []) or [])
+                        if str(x).strip()
+                    }
+
+                    # Since Adjusted now means only manual/search-added codes
+                    adjusted_only_codes = adjusted_codes
+
+                    total_adjusted_codes += len(adjusted_codes)
+                    total_predicted_saved_codes += len(predicted_codes)
+                    total_added_adjusted_codes += len(adjusted_only_codes)
+                    total_saved_icd_codes += len(adjusted_codes) + len(predicted_codes)
+
+                    if isinstance(analysis_rows, list) and len(analysis_rows) > 0:
+                        docs_with_analysis += 1
+
+                    for row in analysis_rows:
+                        code = str(row.get("Code", "")).strip().upper()
+                        if not code:
+                            continue
+
+                        try:
+                            confidence = float(row.get("Confidence", 0))
+                        except Exception:
+                            confidence = 0.0
+
+                        confidence = max(0.0, min(confidence, 1.0))
+                        confidence_pct = confidence * 100
+                        selected = bool(row.get("Selected", False))
+                        visible = bool(row.get("VisibleAtSave", False))
+
+                        try:
+                            threshold_value = float(row.get("ThresholdAtSave", 0.5))
+                        except Exception:
+                            threshold_value = 0.5
+
+                        total_predictions += 1
+                        confidence_sum += confidence_pct
+                        total_accepted += 1 if selected else 0
+                        threshold_sum += threshold_value
+                        threshold_count += 1
+
+                        if visible:
+                            visible_predictions += 1
+                            if selected:
+                                visible_accepted += 1
+
+                        bucket = confidence_bucket_label(confidence_pct)
+                        bucket_stats[bucket]["total"] += 1
+                        bucket_stats[bucket]["accepted"] += 1 if selected else 0
+                        bucket_stats[bucket]["avg_confidence_sum"] += confidence_pct
+
+                        per_code[code]["code"] = code
+                        per_code[code]["total"] += 1
+                        per_code[code]["accepted"] += 1 if selected else 0
+                        per_code[code]["confidence_sum"] += confidence_pct
+                        per_code[code]["visible_count"] += 1 if visible else 0
+
+        bucket_results = []
+        for label in bucket_order:
+            item = bucket_stats[label]
+            total = item["total"]
+            accepted = item["accepted"]
+            avg_conf = (item["avg_confidence_sum"] / total) if total else 0
+
+            bucket_results.append({
+                "label": label,
+                "total": total,
+                "accepted": accepted,
+                "acceptance_rate": round((accepted / total) * 100, 2) if total else 0,
+                "avg_confidence": round(avg_conf, 2)
+            })
+
+        code_results = []
+        for code, item in per_code.items():
+            total = item["total"]
+            accepted = item["accepted"]
+            avg_conf = (item["confidence_sum"] / total) if total else 0
+
+            code_results.append({
+                "code": code,
+                "total": total,
+                "accepted": accepted,
+                "acceptance_rate": round((accepted / total) * 100, 2) if total else 0,
+                "avg_confidence": round(avg_conf, 2),
+                "visible_count": item["visible_count"]
+            })
+
+        code_results.sort(key=lambda x: (-x["total"], -x["acceptance_rate"], x["code"]))
+
+        # manual added codes compared to all saved codes
+        model_miss_rate = round(
+            (total_added_adjusted_codes / total_saved_icd_codes) * 100, 2
+        ) if total_saved_icd_codes else 0
+
+        return jsonify({
+            "status": "success",
+            "summary": {
+                "total_predictions": total_predictions,
+                "total_accepted": total_accepted,
+                "overall_acceptance_rate": round((total_accepted / total_predictions) * 100, 2) if total_predictions else 0,
+                "average_confidence": round((confidence_sum / total_predictions), 2) if total_predictions else 0,
+                "average_threshold": round((threshold_sum / threshold_count) * 100, 2) if threshold_count else 0,
+                "visible_predictions": visible_predictions,
+                "visible_acceptance_rate": round((visible_accepted / visible_predictions) * 100, 2) if visible_predictions else 0,
+                "docs_with_analysis": docs_with_analysis,
+                "total_icd_docs": total_icd_docs,
+                "model_miss_rate": model_miss_rate,
+                "adjusted_only_count": total_added_adjusted_codes
+            },
+            "adjusted_icd_insights": {
+                "model_miss_rate": model_miss_rate,
+                "adjusted_only_codes_count": total_added_adjusted_codes,
+                "total_saved_icd_codes": total_saved_icd_codes,
+                "predicted_saved_codes": total_predicted_saved_codes,
+                "added_adjusted_codes": total_added_adjusted_codes
+            },
+            "confidence_ranges": bucket_results,
+            "per_code": code_results
+        })
         # ---------------------------
     # DELETE ONE MEDICAL NOTE + ALL ICD CODES
     # ---------------------------
