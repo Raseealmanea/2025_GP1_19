@@ -248,6 +248,40 @@
 
 <script>
 
+  function getCheckedPredictedCodes() {
+  return Array.from(
+    document.querySelectorAll("#predictionsList input.pred-check:checked")
+  ).map(cb => cb.value);
+}
+function buildMergedAdjustedCodes(checkedPredicted) {
+  const merged = [...selectedCodes];
+
+  checkedPredicted.forEach(code => {
+    const alreadyExists = merged.some(item => item.Code === code);
+
+    if (!alreadyExists) {
+      merged.push({
+        Code: code,
+        Description: ""
+      });
+    }
+  });
+
+  return merged;
+}
+function buildPredictionAnalysis() {
+  const checkedSet = new Set(getCheckedPredictedCodes());
+  const threshold = Number(document.getElementById("thresholdInput").value || 0.5);
+
+  return (lastPredictions || []).map((p, index) => ({
+    Code: String(p.Code || "").trim().toUpperCase(),
+    Confidence: Number(p.score || 0),
+    Selected: checkedSet.has(String(p.Code || "").trim().toUpperCase()),
+    VisibleAtSave: Number(p.score || 0) >= threshold,
+    ThresholdAtSave: threshold,
+    Rank: index + 1
+  }));
+}
   //Threshold tooltip
 window.addEventListener("load", () => {
   const infoIcon = document.getElementById("thresholdInfoIcon");
@@ -492,47 +526,47 @@ document.getElementById("thresholdInput")
   // Predicted = ONLY checked AI codes
   // =========================
   function initSaveButton() {
-    document.getElementById("saveBothBtn").addEventListener("click", async () => {
-      const pid = document.getElementById("pid").value.trim();
-      const note = document.getElementById("note_text").value.trim();
-      
-        // ✅ ONLY checked AI predictions are saved
-      const checkedPredicted = Array.from(
-        document.querySelectorAll("#predictionsList input.pred-check:checked")
-      ).map(cb => cb.value);
+  document.getElementById("saveBothBtn").addEventListener("click", async () => {
+    const pid = document.getElementById("pid").value.trim();
+    const note = document.getElementById("note_text").value.trim();
 
-      if (!pid) return showMessage("Patient ID is missing!", "error");
-      if (!note) return showMessage("Please enter a medical note!", "error");
-      if (selectedCodes.length === 0 && checkedPredicted.length==0) return showMessage("Please select at least one ICD code!", "error");
+    const checkedPredicted = getCheckedPredictedCodes();
+    const adjustedCodes = [...selectedCodes];
+    const predictionAnalysis = buildPredictionAnalysis();
 
-    
+    if (!pid) return showMessage("Patient ID is missing!", "error");
+    if (!note) return showMessage("Please enter a medical note!", "error");
 
-      try {
-        const response = await fetch("/MedicalNotes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pid: pid,
-            note_text: note,
-            icd_codes: selectedCodes,
-            predicted_codes: checkedPredicted
-          }),
-        });
+    if (adjustedCodes.length === 0 && checkedPredicted.length === 0) {
+      return showMessage("Please select at least one ICD code!", "error");
+    }
 
-        const result = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch("/MedicalNotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pid: pid,
+          note_text: note,
+          icd_codes: adjustedCodes,
+          predicted_codes: checkedPredicted,
+          prediction_analysis: predictionAnalysis
+        }),
+      });
 
-        if (result.status === "success") {
-          showMessage("✅ Saved successfully!", "success");
-          setTimeout(() => (window.location.href = result.redirect), 1500);
-        } else {
-          showMessage("❌ " + (result.message || "Error saving data"), "error");
-        }
-      } catch (err) {
-        showMessage("An error occurred while saving.", "error");
+      const result = await response.json().catch(() => ({}));
+
+      if (result.status === "success") {
+        showMessage("✅ Saved successfully!", "success");
+        setTimeout(() => (window.location.href = result.redirect), 1500);
+      } else {
+        showMessage("❌ " + (result.message || "Error saving data"), "error");
       }
-    });
-  }
-
+    } catch (err) {
+      showMessage("An error occurred while saving.", "error");
+    }
+  });
+}
   // ===============================
   // One-button Mic Dictation (KEEP AUDIO)
   // ===============================
