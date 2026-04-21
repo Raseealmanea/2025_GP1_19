@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Reset Password</title>
+    <title>{% if mode == "change" %}Change Password{% else %}Reset Password{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body class="token-page-body">
 
     <div class="token-container">
-        <h2>Reset Your Password</h2>
+        <h2>{% if mode == "change" %}Change Your Password{% else %}Reset Your Password{% endif %}</h2>
 
         <!-- Display message -->
         {% if message %}
@@ -18,7 +18,7 @@
         </p>
         {% endif %}
 
-        <!-- Reset password form -->
+        <!-- Password update form -->
         <form method="POST">
             <input id="password" type="password" name="password"
                    placeholder="Enter new password" required>
@@ -35,10 +35,12 @@
               <li data-k="special"><span class="pw-icon">❌</span> Special character (!@#…)</li>
             </ul>
 
-            <button type="submit">Update Password</button>
+            <button type="submit">{% if mode == "change" %}Change Password{% else %}Update Password{% endif %}</button>
         </form>
 
-        <a href="{{ url_for('Authentication.login') }}">Back to Login</a>
+        <a href="{% if mode == "change" %}{{ url_for('dashboard') }}{% else %}{{ url_for('Authentication.login') }}{% endif %}">
+            {% if mode == "change" %}Back to Dashboard{% else %}Back to Login{% endif %}
+        </a>
     </div>
 
 <!--  Live password checklist  -->
