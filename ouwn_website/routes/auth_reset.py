@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, session
 # Blueprint → Needed
 # render_template → Needed for HTML pages
 # request → Needed for reading the email + new password form
@@ -31,12 +31,53 @@ BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "ouwnsystem@gmail.com"
 BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "OuwN System")
 BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
 
+def build_password_action_email(reset_link: str, username: str, mode: str = "reset"):
+    """Build password reset/change email content using the same layout."""
+    is_change = mode == "change"
+    noun_phrase = "Password Change" if is_change else "Password Reset"
+    action_phrase = "change your password" if is_change else "reset your password"
+    requested_phrase = "change your password" if is_change else "reset your password"
+    button_label = "Change Password" if is_change else "Reset Password"
+    subject = f"OuwN • {noun_phrase} Link"
+    text_body = f"{button_label}: {reset_link}"
+
+    html_body = f"""
+        <html>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    color: #2d004d; background: #f4eefc; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 10px;
+                        padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+
+            <h2 style="color: #9975C1; text-align: center;">OuwN {noun_phrase}</h2>
+
+            <p>Hi {username},</p>
+
+            <p>You requested to {requested_phrase}. Click the button below to {action_phrase}:</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{reset_link}"
+                style="background: #9975C1; color: white; padding: 12px 25px;
+                        text-decoration: none; border-radius: 25px; font-weight: bold;">
+                {button_label}
+                </a>
+            </div>
+
+            <p>If you didn't request this, you can ignore this email.</p>
+
+            <p>Thanks,<br><strong>OuwN Team</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+
+    return subject, text_body, html_body
+
 # sending email through Brevo API
 def send_brevo_email(to_email: str, subject: str, html: str, text: str = None):
     """Send email using Brevo API."""
     if not BREVO_API_KEY:
         print("❌ Missing BREVO_API_KEY")
-        return
+        return False
 
     # API payload with the message content
     payload = {
@@ -61,12 +102,15 @@ def send_brevo_email(to_email: str, subject: str, html: str, text: str = None):
         # Log errors if any
         if res.status_code >= 400:
             print("❌ BREVO ERROR:", res.text)
+            return False
         else:
             print("✅ Email sent:", res.json())
+            return True
 
     except Exception as e:
         print("❌ Brevo exception:", e)
         traceback.print_exc()
+        return False
 
 
 # Runs the email-sending function in a background thread
@@ -97,47 +141,18 @@ def reset_request():
         
         #  Create password reset token
         s = get_serializer()
-        token = s.dumps({"email": email}, salt="password-reset")
+        token = s.dumps({"email": email, "mode": "reset"}, salt="password-reset")
         reset_link = url_for("auth_reset.reset_password", token=token, _external=True)
 
-        # Email content
-        subject = "OuwN • Password Reset Link"
-        text_body = f"Reset your password: {reset_link}"
         username = user_doc.get("Name", "User")
-
-        html_body = f"""
-            <html>
-            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                        color: #2d004d; background: #f4eefc; padding: 20px;">
-                <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 10px;
-                            padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                
-                <h2 style="color: #9975C1; text-align: center;">OuwN Password Reset</h2>
-
-                <p>Hi {username},</p>
-
-                <p>You requested to reset your password. Click the button below to reset it:</p>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{reset_link}" 
-                    style="background: #9975C1; color: white; padding: 12px 25px; 
-                            text-decoration: none; border-radius: 25px; font-weight: bold;">
-                    Reset Password
-                    </a>
-                </div>
-
-                <p>If you didn't request this, you can ignore this email.</p>
-
-                <p>Thanks,<br><strong>OuwN Team</strong></p>
-                </div>
-            </body>
-            </html>
-            """
+        subject, text_body, html_body = build_password_action_email(reset_link, username, mode="reset")
 
         # Send email 
         try:
-            send_email_async(email, subject, html_body, text_body)
-            message = "✅ A reset email has been sent! Check your inbox."
+            if send_brevo_email(email, subject, html_body, text_body):
+                message = "✅ A reset email has been sent! Check your inbox."
+            else:
+                message = "Failed to send email. Please try again later."
         except Exception as e:
             print("❌ Reset email error:", e)
             message = "Failed to send email. Please try again later."
@@ -154,6 +169,7 @@ def reset_password(token):
     try:
         data = s.loads(token, salt="password-reset", max_age=3600)
         email = data.get("email")
+        mode = data.get("mode", "reset")
     except SignatureExpired:
         return render_template("reset_password.html", message="⚠️ The reset link has expired.")
     except BadSignature:
@@ -193,7 +209,11 @@ def reset_password(token):
         user_ref = user_docs[0].reference
         user_ref.update({"Password": generate_password_hash(password)})
 
+        if mode == "change" and session.get("user_id"):
+            flash("✅ Your password has been changed successfully.", "success")
+            return redirect(url_for("dashboard"))
+
         flash("✅ Your password has been reset! Please log in.", "success")
         return redirect(url_for("Authentication.login"))
 
-    return render_template("reset_token.html", message="")
+    return render_template("reset_token.html", message="", mode=mode)
