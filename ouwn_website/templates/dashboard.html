@@ -12,6 +12,14 @@
     {% include "header.html" %}
     <div id="banner" class="banner"></div>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+            <div class="banner {{ category }} show">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
     <!-- Breadcrumb -->
     <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
         <div class="ouwn-crumbs">
@@ -36,6 +44,12 @@
         window.history.replaceState({}, document.title, window.location.pathname);
     </script>
     {% endif %}
+    <script>
+        setTimeout(() => {
+            const banner = document.querySelector('.banner.show');
+            if (banner) banner.classList.remove('show');
+        }, 4000);
+    </script>
     
 <div class="list-actions">
 <div class="list-actions">
