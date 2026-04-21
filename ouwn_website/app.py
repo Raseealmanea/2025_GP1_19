@@ -921,6 +921,43 @@ def create_app():
 
         return render_template("profile.html", user=current_user)
 
+
+    @app.route("/change-password", methods=["GET", "POST"])
+    def change_password_request():
+        if 'user_id' not in session:
+            return redirect(url_for('Authentication.login'))
+
+        user_ref = db.collection('HealthCareP').document(session['user_id'])
+        user_doc = user_ref.get()
+        current_user = user_doc.to_dict() if user_doc.exists else {"Name": "", "UserID": "", "Email": ""}
+        email = current_user.get("Email", "").strip()
+
+        if request.method == "POST":
+            username = current_user.get("Name", "User")
+
+            if not email:
+                flash("No email is saved for this account.", "error")
+                return redirect(url_for("change_password_request"))
+
+            try:
+                from routes.auth_reset import get_serializer, build_password_action_email, send_brevo_email
+
+                s = get_serializer()
+                token = s.dumps({"email": email, "mode": "change"}, salt="password-reset")
+                change_link = url_for("auth_reset.reset_password", token=token, _external=True)
+                subject, text_body, html_body = build_password_action_email(change_link, username, mode="change")
+
+                if send_brevo_email(email, subject, html_body, text_body):
+                    flash("A change password link has been sent to your email.", "success")
+                else:
+                    flash("Failed to send the change password email. Please try again later.", "error")
+            except Exception as e:
+                flash(str(e), "error")
+
+            return redirect(url_for("change_password_request"))
+
+        return render_template("change_password_request.html", user=current_user, email=email)
+
     @app.route("/check")
     def check_unique():
         if 'user_id' not in session:
