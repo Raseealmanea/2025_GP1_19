@@ -2063,3 +2063,41 @@ th {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Password Change Page Style */
+
+.profile-password-text {
+    margin: 0 0 16px;
+    color: #5d4b76;
+}
+
+.profile-password-form label {
+    display: block;
+    margin-bottom: 6px;
+    text-align: left;
+}
+
+.profile-password-form input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    margin-top: 6px;
+    font-size: 15px;
+    background: #f4eefc;
+    color: #555;
+    cursor: not-allowed;
+}
+
+.auth-container-password-request {
+    max-width: 540px;
+}
+
+.profile-password-btn {
+    margin-top: 18px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    background: #9975c2;
+    color: white;
+}
