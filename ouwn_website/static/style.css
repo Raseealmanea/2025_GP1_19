@@ -2446,7 +2446,7 @@ body.dark-mode .icd-category.active {
 .theme-toggle:active,
 .theme-toggle:visited {
   position: fixed;
-  top: 20px;
+  top: 120px;
   left: 20px;
   width: 56px;
   height: 56px;
