@@ -2101,3 +2101,503 @@ th {
     background: #9975c2;
     color: white;
 }
+/* =========================================================
+   OLD DARK MODE CSS
+   Uses: body.dark-mode
+   Put this at the VERY END of styles.css
+========================================================= */
+
+body.dark-mode {
+  background: linear-gradient(135deg, #120d1d 0%, #171126 45%, #211833 100%) !important;
+  color: #ece6f6 !important;
+}
+
+/* main wrappers / page backgrounds */
+body.dark-mode,
+body.dark-mode .page-wrapper,
+body.dark-mode .main-content,
+body.dark-mode .dashboard-wrapper,
+body.dark-mode .content,
+body.dark-mode .content-area,
+body.dark-mode .container-fluid,
+body.dark-mode .dashboard-container {
+  background: linear-gradient(135deg, #120d1d 0%, #171126 45%, #211833 100%) !important;
+  color: #ece6f6 !important;
+}
+
+/* header / navbar */
+body.dark-mode header,
+body.dark-mode .header,
+body.dark-mode .topbar,
+body.dark-mode .navbar,
+body.dark-mode .nav-bar {
+  background: #171126 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+/* breadcrumb bar */
+body.dark-mode .breadcrumb,
+body.dark-mode .ouwn-breadcrumb-bar,
+body.dark-mode .breadcrumb-bar,
+body.dark-mode .path-bar {
+  background: #0f0b18 !important;
+  color: #ddd3f0 !important;
+  border-top: 1px solid rgba(255,255,255,0.04) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: none !important;
+}
+
+/* general text */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .title,
+body.dark-mode .page-title,
+body.dark-mode .section-title {
+  color: #bfa6ea !important;
+  text-shadow: none !important;
+}
+
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode label,
+body.dark-mode li,
+body.dark-mode small,
+body.dark-mode .muted,
+body.dark-mode .subtitle,
+body.dark-mode .help-text {
+  color: #ddd3f0 !important;
+}
+
+body.dark-mode a {
+  color: #ddd3f0 !important;
+}
+
+body.dark-mode a:hover {
+  color: #bfa6ea !important;
+}
+
+/* cards and panels */
+body.dark-mode .card,
+body.dark-mode .patient-card,
+body.dark-mode .container.card,
+body.dark-mode .panel,
+body.dark-mode .box,
+body.dark-mode .result-card,
+body.dark-mode .info-card,
+body.dark-mode .patient-box,
+body.dark-mode .profile-card,
+body.dark-mode .form-card,
+body.dark-mode .auth-container,
+body.dark-mode .reset-container,
+body.dark-mode .token-container,
+body.dark-mode .confirm-box,
+body.dark-mode section.att,
+body.dark-mode .auth-container-profile,
+body.dark-mode .dropdown,
+body.dark-mode .autocomplete-box,
+body.dark-mode .note-suggest-box,
+body.dark-mode .note-icd-suggestions,
+body.dark-mode .custom-select-items {
+  background: #4e4066 !important;
+  color: #efe9fb !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18) !important;
+}
+
+/* form areas */
+body.dark-mode form,
+body.dark-mode .form-container,
+body.dark-mode .medical-note-form,
+body.dark-mode .patient-form {
+  color: #efe9fb !important;
+}
+
+/* inputs */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea,
+body.dark-mode .form-control,
+body.dark-mode .search-input,
+body.dark-mode .search-select,
+body.dark-mode .auth-form input,
+body.dark-mode .control input,
+body.dark-mode .control select,
+body.dark-mode #searchBox,
+body.dark-mode .search-bar input,
+body.dark-mode .search-bar select,
+body.dark-mode .notes-search-input,
+body.dark-mode .custom-select-selected,
+body.dark-mode .profile-info input {
+  background: #2d243d !important;
+  color: #f1ebff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #b7aacd !important;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus,
+body.dark-mode .form-control:focus,
+body.dark-mode .auth-form input:focus,
+body.dark-mode .control input:focus,
+body.dark-mode .control select:focus,
+body.dark-mode #searchBox:focus,
+body.dark-mode .search-bar input:focus,
+body.dark-mode .search-bar select:focus,
+body.dark-mode .custom-select-selected:focus {
+  outline: none !important;
+  border-color: rgba(191,166,234,0.35) !important;
+  box-shadow: 0 0 0 3px rgba(183,156,232,0.25) !important;
+  background: #332747 !important;
+}
+
+/* buttons */
+body.dark-mode button:not(.theme-toggle):not(.menu-toggle),
+body.dark-mode .btn,
+body.dark-mode .btn-primary,
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-profile,
+body.dark-mode .smallBtn,
+body.dark-mode .search-btn,
+body.dark-mode .action-btn,
+body.dark-mode .submit-btn,
+body.dark-mode .save-btn,
+body.dark-mode .save-icd-btn,
+body.dark-mode .add-patient-btn,
+body.dark-mode .icon-btn,
+body.dark-mode .cbtn.confirm {
+  background: #7b5aa6 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22) !important;
+  text-shadow: none !important;
+}
+
+body.dark-mode button:not(.theme-toggle):not(.menu-toggle):hover,
+body.dark-mode .btn:hover,
+body.dark-mode .btn-primary:hover,
+body.dark-mode .btn-secondary:hover,
+body.dark-mode .btn-profile:hover,
+body.dark-mode .smallBtn:hover,
+body.dark-mode .search-btn:hover,
+body.dark-mode .action-btn:hover,
+body.dark-mode .submit-btn:hover,
+body.dark-mode .save-btn:hover,
+body.dark-mode .save-icd-btn:hover,
+body.dark-mode .add-patient-btn:hover,
+body.dark-mode .icon-btn:hover,
+body.dark-mode .cbtn.confirm:hover {
+  background: #6b4c96 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22) !important;
+  transform: none !important;
+}
+
+body.dark-mode .btn-danger,
+body.dark-mode .note-delete-btn,
+body.dark-mode .confirm-overlay.danger #confirmOkBtn,
+body.dark-mode .confirm-overlay.danger .cbtn.confirm {
+  background: #b3263d !important;
+  color: #fff !important;
+}
+
+body.dark-mode .btn-danger:hover,
+body.dark-mode .note-delete-btn:hover,
+body.dark-mode .confirm-overlay.danger #confirmOkBtn:hover,
+body.dark-mode .confirm-overlay.danger .cbtn.confirm:hover {
+  background: #961f32 !important;
+}
+
+/* tables */
+body.dark-mode table,
+body.dark-mode .table,
+body.dark-mode .patient-table {
+  background: #4e4066 !important;
+  color: #efe9fb !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode th,
+body.dark-mode td {
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode th {
+  background: #44365b !important;
+  color: #efe9fb !important;
+}
+
+body.dark-mode .patient-table tr:nth-child(odd) {
+  background-color: #4e4066 !important;
+}
+
+body.dark-mode .patient-table tr:nth-child(even) {
+  background-color: #5a4a74 !important;
+}
+
+body.dark-mode .patient-table tr:hover {
+  background-color: #6a5a86 !important;
+}
+
+/* dropdowns / menus */
+body.dark-mode .dropdown-menu,
+body.dark-mode .dropdown,
+body.dark-mode .menu-dropdown,
+body.dark-mode .popup-menu {
+  background: #2a2039 !important;
+  color: #efe9fb !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18) !important;
+}
+
+body.dark-mode .dropdown-menu a,
+body.dark-mode .dropdown a,
+body.dark-mode .menu-dropdown a,
+body.dark-mode .custom-select-items div,
+body.dark-mode .autocomplete-item,
+body.dark-mode .note-suggest-item,
+body.dark-mode .note-icd-item {
+  color: #efe9fb !important;
+}
+
+body.dark-mode .dropdown-menu a:hover,
+body.dark-mode .dropdown a:hover,
+body.dark-mode .menu-dropdown a:hover,
+body.dark-mode .custom-select-items div:hover,
+body.dark-mode .autocomplete-item:hover,
+body.dark-mode .note-suggest-item:hover,
+body.dark-mode .note-icd-item:hover {
+  background: rgba(255,255,255,0.04) !important;
+}
+
+/* footer */
+body.dark-mode footer,
+body.dark-mode .footer {
+  background: #171126 !important;
+  color: #c7badf !important;
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+
+/* icons */
+body.dark-mode i,
+body.dark-mode svg,
+body.dark-mode .icon {
+  color: #ddd3f0 !important;
+}
+
+/* profile icon/menu circle */
+body.dark-mode .profile-icon,
+body.dark-mode .menu-toggle,
+body.dark-mode .menu-icon-btn,
+body.dark-mode .circle-menu-btn {
+  background: #171126 !important;
+  color: #8f72c8 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* selected code chips */
+body.dark-mode .selected-code,
+body.dark-mode .selected-codes .selected-code,
+body.dark-mode .page-view-patient .selected-code,
+body.dark-mode .predicted-codes .selected-code {
+  background: #e9ddff !important;
+  color: #2b1f3d !important;
+  -webkit-text-fill-color: #2b1f3d !important;
+  border: 1px solid #d8c8f5 !important;
+  box-shadow: none !important;
+}
+
+/* category pills */
+body.dark-mode .category-box,
+body.dark-mode .category-btn,
+body.dark-mode .icd-category {
+  background: #2f2540 !important;
+  color: #ddd3f0 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+
+body.dark-mode .category-box.active,
+body.dark-mode .category-box:hover,
+body.dark-mode .category-btn.active,
+body.dark-mode .icd-category.active {
+  background: #b79ce8 !important;
+  color: white !important;
+  border: none !important;
+}
+
+/* theme toggle button */
+.theme-toggle,
+.theme-toggle:hover,
+.theme-toggle:focus,
+.theme-toggle:active,
+.theme-toggle:visited {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 9999;
+  background: #7b5aa6 !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.22) !important;
+  transition: transform 0.15s ease !important;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+}
+
+.theme-toggle .theme-toggle__icon,
+.theme-toggle span,
+.theme-toggle i {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+/* =========================
+   MEDICAL NOTES DARK MODE FIX
+   ========================= */
+
+body.dark-mode.medical-note,
+body.dark-mode .medical-note,
+body.dark-mode.form-page.medical-note {
+  color: #ece6f6 !important;
+}
+
+/* prediction cards */
+body.dark-mode .pred-card {
+  background: #4e4066 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18) !important;
+}
+
+body.dark-mode .pred-title,
+body.dark-mode .pred-sub,
+body.dark-mode .pred-code,
+body.dark-mode .pred-score {
+  color: #efe9fb !important;
+}
+
+body.dark-mode .pred-item {
+  background: #2d243d !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode .pred-bar {
+  background: rgba(255,255,255,0.12) !important;
+}
+
+body.dark-mode .pred-bar > div {
+  background: linear-gradient(90deg, #7b5aa6, #b79ce8) !important;
+}
+
+/* threshold tooltip */
+body.dark-mode #thresholdTooltip {
+  background: #2d243d !important;
+  color: #efe9fb !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* readonly patient fields on medical notes page */
+body.dark-mode.medical-note input[readonly],
+body.dark-mode .medical-note input[readonly] {
+  background: #3a304d !important;
+  color: #efe9fb !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  -webkit-text-fill-color: #efe9fb !important;
+}
+
+/* note textarea */
+body.dark-mode.medical-note #note_text,
+body.dark-mode .medical-note #note_text {
+  background: #2d243d !important;
+  color: #f1ebff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* suggestion boxes */
+body.dark-mode #noteSuggestBox,
+body.dark-mode #autocompleteBox,
+body.dark-mode .autocomplete-box,
+body.dark-mode .note-suggest-box,
+body.dark-mode .note-icd-suggestions {
+  background: #2a2039 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: #efe9fb !important;
+}
+
+body.dark-mode .autocomplete-item,
+body.dark-mode .note-suggest-item,
+body.dark-mode .note-icd-item {
+  color: #efe9fb !important;
+}
+
+body.dark-mode .autocomplete-item:hover,
+body.dark-mode .note-suggest-item:hover,
+body.dark-mode .note-icd-item:hover {
+  background: rgba(255,255,255,0.06) !important;
+}
+
+/* results area */
+body.dark-mode #results .result-item {
+  background: #2d243d !important;
+  color: #efe9fb !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode #results strong {
+  color: #bfa6ea !important;
+}
+
+/* mic status text */
+body.dark-mode #recStatus {
+  color: #ddd3f0 !important;
+}
+body.dark-mode.reset-page-body {
+  background: linear-gradient(135deg, #120d1d 0%, #171126 45%, #211833 100%) !important;
+  color: #ece6f6 !important;
+}
+
+body.dark-mode .reset-container {
+  background: #4e4066 !important;
+  color: #efe9fb !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode .reset-container h2 {
+  color: #bfa6ea !important;
+}
+
+body.dark-mode .reset-container input {
+  background: #2d243d !important;
+  color: #f1ebff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+body.dark-mode .reset-container input::placeholder {
+  color: #b7aacd !important;
+}
+
+body.dark-mode .reset-container a {
+  color: #ddd3f0 !important;
+}
