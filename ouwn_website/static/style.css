@@ -2602,3 +2602,37 @@ body.dark-mode .reset-container input::placeholder {
 body.dark-mode .reset-container a {
   color: #ddd3f0 !important;
 }
+.patient-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.patient-actions .btn-icon,
+.patient-actions .btn-secondary.btn-icon,
+.patient-actions .btn-danger.btn-icon {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none;
+  border-radius: 14px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+.patient-actions .btn-icon i,
+.patient-actions .btn-secondary.btn-icon i,
+.patient-actions .btn-danger.btn-icon i {
+  margin: 0;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+}
