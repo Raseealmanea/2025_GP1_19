@@ -331,15 +331,26 @@ function renderPatients(patients) {
               <span class="id-label">Patient ID</span>
               <span class="patient-id">${p.ID}</span>
             </div>
-            <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
-              <i class="fa-solid fa-file-medical"></i> Add Medical Notes
-            </button>
-            <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
-              <i class="fa-solid fa-eye"></i> View Patient
-            </button>
-            <button type="button" class="btn-danger delete-btn" data-id="${p.ID}">
-              <i class="fa-solid fa-trash"></i> Delete Patient
-            </button>
+
+            <div class="patient-actions">
+              <button class="btn-icon btn-secondary"
+                onclick="location.href='/MedicalNotes?pid=${p.ID}'"
+                title="Add Medical Notes" aria-label="Add Medical Notes">
+                <i class="fa-solid fa-file-medical"></i>
+              </button>
+
+              <button class="btn-icon btn-secondary"
+                onclick="location.href='/view_patient/${p.ID}'"
+                title="View Patient" aria-label="View Patient">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+
+              <button type="button" class="btn-icon btn-danger delete-btn"
+                data-id="${p.ID}"
+                title="Delete Patient" aria-label="Delete Patient">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
           </div>
         `;
 
