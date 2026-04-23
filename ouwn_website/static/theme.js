@@ -1,17 +1,24 @@
 // Theme toggle (light/dark) with localStorage persistence
 (function () {
   const STORAGE_KEY = "ouwn_theme"; // 'light' | 'dark'
-  const root = document.documentElement;
 
-  function safeGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
-  function safeSet(key, val) { try { localStorage.setItem(key, val); } catch (_) {} }
+  function safeGet(key) {
+    try { return localStorage.getItem(key); }
+    catch (_) { return null; }
+  }
+
+  function safeSet(key, val) {
+    try { localStorage.setItem(key, val); }
+    catch (_) {}
+  }
 
   function currentTheme() {
-    return root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    return document.body.classList.contains("dark-mode") ? "dark" : "light";
   }
 
   function applyTheme(theme) {
-    root.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+    if (!document.body) return;
+    document.body.classList.toggle("dark-mode", theme === "dark");
     updateButton();
   }
 
@@ -52,13 +59,10 @@
     btn.title = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
   }
 
-  // Apply saved theme ASAP
-  const saved = safeGet(STORAGE_KEY);
-  applyTheme(saved === "dark" ? "dark" : "light");
-
   document.addEventListener("DOMContentLoaded", function () {
+    const saved = safeGet(STORAGE_KEY);
+    applyTheme(saved === "dark" ? "dark" : "light");
     ensureButton();
     updateButton();
   });
 })();
-
