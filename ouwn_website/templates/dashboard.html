@@ -50,7 +50,7 @@
             if (banner) banner.classList.remove('show');
         }, 4000);
     </script>
-    
+
 <div class="list-actions">
 <div class="list-actions">
     <div class="header-buttons">
@@ -77,26 +77,27 @@
     <input type="text" id="unifiedSearchInput" placeholder="Enter search value">
     <div class="custom-select-wrapper search-select">
     <select id="searchType">
-  <option value="name">Name</option>
-  <option value="id">ID</option>
-  <option value="yob">Year of Birth</option>
-  <option value="icd">ICD Code</option>
-</select>
-</div>   
+      <option value="name">Name</option>
+      <option value="id">ID</option>
+      <option value="yob">Year of Birth</option>
+      <option value="icd">ICD Code</option>
+    </select>
+    </div>
 </div>
-            <!-- Sort Controls -->
+
+<!-- Sort Controls -->
 <div class="sort-bar">
   <label>Sort by:</label>
-<div class="custom-select-wrapper">
-<select id="sortBy">
-  <option value="">Select</option>
-  <option value="name_asc">First Name (A → Z)</option>
-  <option value="name_desc">First Name (Z → A)</option>
-  <option value="age_young">Age (Younger first)</option>
-  <option value="age_old">Age (Older first)</option>
-  <option value="icd_date">ICD Date (Earliest first)</option>
-</select>
-</div>
+  <div class="custom-select-wrapper">
+    <select id="sortBy">
+      <option value="">Select</option>
+      <option value="name_asc">First Name (A → Z)</option>
+      <option value="name_desc">First Name (Z → A)</option>
+      <option value="age_young">Age (Younger first)</option>
+      <option value="age_old">Age (Older first)</option>
+      <option value="icd_date">ICD Date (Earliest first)</option>
+    </select>
+  </div>
 </div>
 </div>
 
@@ -109,46 +110,12 @@
                 <div class="title-bar-line-fade"></div>
             </div>
 
-            {% if patients %}
             <div class="patient-grid">
-                {% for p in patients %}
-                <div class="patient-card" id="patient-{{ p.ID }}" data-name="{{ p.FullName }}" data-id="{{ p.ID }}">
-                    <div class="card-corner"></div>
-                    <div class="card-content">
-                        <h3 class="patient-name">{{ p.FullName }}</h3>
-                        <div class="patient-id-row">
-                            <span class="id-label">Patient ID</span>
-                            <span class="patient-id">{{ p.ID }}</span>
-                        </div>
-                        <div class="patient-actions">
-                          <button class="btn-icon btn-secondary"
-                              onclick="location.href='{{ url_for('add_note') }}?pid={{ p.ID }}'"
-                              title="Add Medical Notes" aria-label="Add Medical Notes">
-                              <i class="fa-solid fa-file-medical"></i>
-                          </button>
-
-                          <button class="btn-icon btn-secondary"
-                              onclick="location.href='{{ url_for('view_patient', pid=p.ID) }}'"
-                              title="View Patient" aria-label="View Patient">
-                              <i class="fa-solid fa-eye"></i>
-                          </button>
-
-                          <button type="button" class="btn-icon btn-danger delete-btn"
-                              data-id="{{ p.ID }}"
-                              title="Delete Patient" aria-label="Delete Patient">
-                              <i class="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+                <div class="no-results"><i class="fa-solid fa-spinner fa-spin"></i> Loading patients...</div>
             </div>
-            {% else %}
-            <p>No patients found.</p>
-            {% endif %}
         </div>
-        
     </main>
+
 <div id="horizontalView" style="display: none; overflow-x: auto;">
   <table class="patient-table">
     <thead>
@@ -158,28 +125,10 @@
         <th>Actions</th>
       </tr>
     </thead>
-    <tbody>
-      {% for p in patients %}
-      <tr id="patient-row-{{ p.ID }}">
-        <td>{{ p.FullName }}</td>
-        <td>{{ p.ID }}</td>
-        <td>
-          <button class="btn-secondary" onclick="location.href='{{ url_for('add_note') }}?pid={{ p.ID }}'">
-            <i class="fa-solid fa-file-medical"></i>
-          </button>
-          <button class="btn-secondary" onclick="location.href='{{ url_for('view_patient', pid=p.ID) }}'">
-            <i class="fa-solid fa-eye"></i>
-          </button>
-          <button class="btn-danger delete-btn" data-id="{{ p.ID }}">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
+    <tbody></tbody>
   </table>
 </div>
-    
+
     <!-- Custom Confirm Modal -->
 <div id="confirmModal" class="confirm-modal">
   <div class="confirm-box">
@@ -197,12 +146,12 @@
   </div>
 </div>
 
-
     <footer>
         <p>&copy; 2025 OuwN. All Rights Reserved.</p>
     </footer>
-    <script>
-/* ========= Banner (your existing CSS) ========= */
+
+<script>
+/* ========= Banner ========= */
 function showBanner(message, type = "success") {
   const banner = document.getElementById("banner");
   if (!banner) return;
@@ -220,7 +169,7 @@ function showBanner(message, type = "success") {
   }, 3500);
 }
 
-/* ========= Custom Confirm (stylable) ========= */
+/* ========= Custom Confirm ========= */
 function customConfirm(message) {
   return new Promise((resolve) => {
     const modal = document.getElementById("confirmModal");
@@ -242,17 +191,28 @@ function customConfirm(message) {
     okBtn.onclick = () => { cleanup(); resolve(true); };
     cancelBtn.onclick = () => { cleanup(); resolve(false); };
 
-    // click outside closes (cancel)
     modal.onclick = (e) => {
       if (e.target === modal) { cleanup(); resolve(false); }
     };
 
-    // ESC closes (cancel)
     document.onkeydown = (e) => {
       if (e.key === "Escape") { cleanup(); resolve(false); }
     };
   });
 }
+
+/* ========= Dashboard State ========= */
+const unifiedSearchInput = document.getElementById("unifiedSearchInput");
+const searchType = document.getElementById("searchType");
+const sortBy = document.getElementById("sortBy");
+const patientGrid = document.querySelector(".patient-grid");
+
+let initialPatientsData = {{ patients|tojson }};
+let searchTimeout = null;
+let activeAbortController = null;
+let lastRequestSeq = 0;
+let initialPatientsLoaded = false;
+let initialPatientsLoadPromise = null;
 
 /* ========= Delete Patient ========= */
 document.addEventListener("click", async (e) => {
@@ -287,6 +247,11 @@ document.addEventListener("click", async (e) => {
     const card = document.getElementById(`patient-${pid}`);
     if (card) card.remove();
 
+    const row = document.getElementById(`patient-row-${pid}`);
+    if (row) row.remove();
+
+    initialPatientsData = initialPatientsData.filter(p => p.ID !== pid);
+
     showBanner("Patient deleted successfully.", "success");
 
   } catch (err) {
@@ -294,17 +259,6 @@ document.addEventListener("click", async (e) => {
     btn.disabled = false;
   }
 });
-// Live Search + Sort (AJAX) 
-const unifiedSearchInput = document.getElementById("unifiedSearchInput");
-const searchType = document.getElementById("searchType");
-const sortBy = document.getElementById("sortBy");           // <-- IMPORTANT
-const patientGrid = document.querySelector(".patient-grid");
-
-let searchTimeout = null;
-let activeAbortController = null;
-let lastRequestSeq = 0;
-
-const initialGridHTML = patientGrid ? patientGrid.innerHTML : "";
 
 function renderPatients(patients) {
     if (!patientGrid) return;
@@ -395,6 +349,94 @@ function renderPatientsTable(patients) {
     });
 }
 
+function filterPatientsLocal(patients, value, type) {
+    const q = (value || "").trim();
+    if (!q) return [...patients];
+
+    if (type === "name") {
+        const qLower = q.toLowerCase();
+        return patients.filter(p => {
+            const fullName = (p.FullName || "").toLowerCase().trim();
+            const nameParts = fullName.split(/\s+/).filter(Boolean);
+            return fullName.startsWith(qLower) || nameParts.some(part => part.startsWith(qLower));
+        });
+    }
+
+    if (type === "id") {
+        const qLower = q.toLowerCase();
+        return patients.filter(p => (p.ID || "").toLowerCase().startsWith(qLower));
+    }
+
+    if (type === "yob") {
+        return patients.filter(p => {
+            const dob = String(p.DOB || "");
+            if (dob) return dob.slice(0, 4).startsWith(q);
+            return String(p.YOB || "").startsWith(q);
+        });
+    }
+
+    return [...patients];
+}
+
+function sortPatientsLocal(patients, sort) {
+    const items = [...patients];
+    const getDobString = (patient) => String(patient.DOB || "");
+
+    if (sort === "name_asc") {
+        items.sort((a, b) => (a.FullName || "").localeCompare(b.FullName || "", undefined, { sensitivity: "base" }));
+    } else if (sort === "name_desc") {
+        items.sort((a, b) => (b.FullName || "").localeCompare(a.FullName || "", undefined, { sensitivity: "base" }));
+    } else if (sort === "age_young") {
+        items.sort((a, b) => {
+            const dobA = getDobString(a);
+            const dobB = getDobString(b);
+            if (!dobA && !dobB) return 0;
+            if (!dobA) return 1;
+            if (!dobB) return -1;
+            return dobB.localeCompare(dobA);
+        });
+    } else if (sort === "age_old") {
+        items.sort((a, b) => {
+            const dobA = getDobString(a);
+            const dobB = getDobString(b);
+            if (!dobA && !dobB) return 0;
+            if (!dobA) return 1;
+            if (!dobB) return -1;
+            return dobA.localeCompare(dobB);
+        });
+    }
+
+    return items;
+}
+
+async function loadInitialPatients() {
+    if (initialPatientsLoaded) return initialPatientsData;
+    if (initialPatientsLoadPromise) return initialPatientsLoadPromise;
+
+    initialPatientsLoadPromise = (async () => {
+        try {
+            const res = await fetch("/api/patients");
+            if (!res.ok) throw new Error("Failed to load patients");
+
+            const data = await res.json();
+            initialPatientsData = data;
+            initialPatientsLoaded = true;
+            renderPatients(data);
+            renderPatientsTable(data);
+            return data;
+        } catch (err) {
+            console.error(err);
+            renderPatients([]);
+            renderPatientsTable([]);
+            return [];
+        } finally {
+            initialPatientsLoadPromise = null;
+        }
+    })();
+
+    return initialPatientsLoadPromise;
+}
+
 function validateUnifiedInput() {
   let value = unifiedSearchInput.value;
   if (!value) return;
@@ -406,11 +448,11 @@ function validateUnifiedInput() {
   } else if (type === "id") {
     value = value.replace(/[^0-9]/g, "");
   } else if (type === "yob") {
-  value = value.replace(/[^0-9]/g, "");
-  if (value.length > 4) value = value.slice(0, 4);
+    value = value.replace(/[^0-9]/g, "");
+    if (value.length > 4) value = value.slice(0, 4);
   } else if (type === "icd") {
     value = value.replace(/[^a-zA-Z0-9.]/g, "");
-    value = value.replace(/^\./, "");           
+    value = value.replace(/^\./, "");
     value = value.replace(/(\..*)\./g, "$1");
     value = value.toUpperCase();
   }
@@ -421,26 +463,40 @@ function validateUnifiedInput() {
 async function fetchPatients() {
     clearTimeout(searchTimeout);
 
-    searchTimeout = setTimeout(async () => {
-        const value = unifiedSearchInput.value.trim();
-        const type = searchType.value;
-        const sort = sortBy ? sortBy.value || "" : "";
+    const value = unifiedSearchInput.value.trim();
+    const type = searchType.value;
+    const sort = sortBy ? sortBy.value || "" : "";
 
-        // Abort previous request
+    const needsServerData =
+        type === "icd" ||
+        sort === "icd_date";
+
+    if (!needsServerData) {
+        if (!initialPatientsLoaded) {
+            await loadInitialPatients();
+        }
+        const filtered = filterPatientsLocal(initialPatientsData, value, type);
+        const sorted = sortPatientsLocal(filtered, sort);
+        renderPatients(sorted);
+        renderPatientsTable(sorted);
+        return;
+    }
+
+    searchTimeout = setTimeout(async () => {
         if (activeAbortController) activeAbortController.abort();
         activeAbortController = new AbortController();
         const thisSeq = ++lastRequestSeq;
 
         try {
             let search = "";
-let yob = "";
-let icd = "";
+            let yob = "";
+            let icd = "";
 
-if (type === "name" || type === "id") search = value;
-if (type === "yob") yob = value;
-if (type === "icd") icd = value;
+            if (type === "name" || type === "id") search = value;
+            if (type === "yob") yob = value;
+            if (type === "icd") icd = value;
 
-const params = new URLSearchParams({ search, yob, icd, sort });
+            const params = new URLSearchParams({ search, yob, icd, sort });
             const res = await fetch(`/api/patients?${params.toString()}`, {
                 signal: activeAbortController.signal
             });
@@ -449,8 +505,8 @@ const params = new URLSearchParams({ search, yob, icd, sort });
 
             if (thisSeq !== lastRequestSeq) return;
 
-            renderPatients(data);       // card view
-            renderPatientsTable(data);  // table view
+            renderPatients(data);
+            renderPatientsTable(data);
         } catch (err) {
             if (err && err.name === "AbortError") return;
             console.error(err);
@@ -466,19 +522,19 @@ unifiedSearchInput.addEventListener("input", () => {
 searchType.addEventListener("change", () => {
   unifiedSearchInput.value = "";
   if (activeAbortController) activeAbortController.abort();
-  if (patientGrid) patientGrid.innerHTML = initialGridHTML;
+  fetchPatients();
 });
 
 if (sortBy) {
   sortBy.addEventListener("change", fetchPatients);
-}     
+}
+
 const gridBtn = document.getElementById("gridView");
 const listBtn = document.getElementById("listView");
 
 const cardView = document.querySelector(".patient-grid");
 const horizontalView = document.getElementById("horizontalView");
 
-// Load previous preference
 if (localStorage.getItem("patientView") === "horizontal") {
     cardView.style.display = "none";
     horizontalView.style.display = "block";
@@ -487,19 +543,6 @@ if (localStorage.getItem("patientView") === "horizontal") {
     horizontalView.style.display = "none";
 }
 
-// Grid view button
-gridBtn.addEventListener("click", () => {
-    cardView.style.display = "grid";
-    horizontalView.style.display = "none";
-    localStorage.setItem("patientView", "card");
-});
-
-// List view button
-listBtn.addEventListener("click", () => {
-    cardView.style.display = "none";
-    horizontalView.style.display = "block";
-    localStorage.setItem("patientView", "horizontal");
-});
 function updateActiveButton() {
     const view = localStorage.getItem("patientView") || "card";
     if (view === "card") {
@@ -511,10 +554,8 @@ function updateActiveButton() {
     }
 }
 
-// Initial active state
 updateActiveButton();
 
-// Update active state on click
 gridBtn.addEventListener("click", () => {
     cardView.style.display = "grid";
     horizontalView.style.display = "none";
@@ -528,9 +569,12 @@ listBtn.addEventListener("click", () => {
     localStorage.setItem("patientView", "horizontal");
     updateActiveButton();
 });
+
+loadInitialPatients();
 </script>
+
 <script>
-  document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
+document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
   const select = wrapper.querySelector("select");
 
   const custom = document.createElement("div");
@@ -538,8 +582,10 @@ listBtn.addEventListener("click", () => {
 
   const selected = document.createElement("div");
   selected.className = "custom-select-selected";
+
   const selectedLabel = document.createElement("span");
   selectedLabel.className = "custom-select-selected-label";
+
   const selectedArrow = document.createElement("span");
   selectedArrow.className = "custom-select-selected-arrow";
   selectedArrow.setAttribute("aria-hidden", "true");
@@ -553,10 +599,9 @@ listBtn.addEventListener("click", () => {
   }
 
   function renderOptions() {
-    items.innerHTML = ""; // 🔥 clear old options
+    items.innerHTML = "";
 
     Array.from(select.options).forEach((option, index) => {
-      // 🚫 Skip placeholder + selected
       if (option.value === "" || option.disabled || index === select.selectedIndex) return;
 
       const div = document.createElement("div");
@@ -569,8 +614,7 @@ listBtn.addEventListener("click", () => {
         select.dispatchEvent(new Event("change"));
 
         selectedLabel.textContent = option.text;
-
-        renderOptions(); // 🔥 rebuild list after change
+        renderOptions();
         custom.classList.remove("open");
       });
 
@@ -578,7 +622,6 @@ listBtn.addEventListener("click", () => {
     });
   }
 
-  // Initial value
   selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
 
   renderOptions();
