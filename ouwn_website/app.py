@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Dict, Any
 
-import os, json, re, uuid
+import os, json, re, uuid, time
 from datetime import datetime, date, timezone
 
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
@@ -305,6 +305,136 @@ def create_app():
     # Load whisper model once (fast for later requests)
     app.whisper_model = whisper.load_model(app.config["WHISPER_MODEL"])
 
+    dashboard_cache = {
+        "summary": None,
+        "summary_loaded_at": 0.0,
+        "icd_meta": None,
+        "icd_loaded_at": 0.0,
+    }
+    SUMMARY_CACHE_TTL = 60
+    ICD_META_CACHE_TTL = 60
+
+    def invalidate_dashboard_cache(summary=True, icd=True):
+        if summary:
+            dashboard_cache["summary"] = None
+            dashboard_cache["summary_loaded_at"] = 0.0
+        if icd:
+            dashboard_cache["icd_meta"] = None
+            dashboard_cache["icd_loaded_at"] = 0.0
+
+    def build_patient_summary(doc):
+        data = doc.to_dict() or {}
+        dob = data.get("DOB")
+        age = None
+        dob_date = None
+
+        if dob:
+            try:
+                if isinstance(dob, datetime):
+                    dob_date = dob.date()
+                else:
+                    dob_date = datetime.strptime(str(dob), "%Y-%m-%d").date()
+
+                age = date.today().year - dob_date.year
+                if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
+                    age -= 1
+            except Exception:
+                age = None
+                dob_date = None
+
+        return {
+            "ID": doc.id,
+            "FullName": data.get("FullName", "Unknown"),
+            "Age": age,
+            "YOB": dob_date.year if dob_date else None,
+            "DOB_Date": dob_date,
+        }
+
+    def get_patient_summaries_cached(force=False):
+        now_ts = time.time()
+        cached = dashboard_cache["summary"]
+
+        if (
+            not force
+            and cached is not None
+            and (now_ts - dashboard_cache["summary_loaded_at"]) < SUMMARY_CACHE_TTL
+        ):
+            return [dict(item) for item in cached]
+
+        docs = db.collection("Patient").select(["FullName", "DOB"]).stream()
+        summaries = [build_patient_summary(doc) for doc in docs]
+
+        dashboard_cache["summary"] = summaries
+        dashboard_cache["summary_loaded_at"] = now_ts
+        return [dict(item) for item in summaries]
+
+    def get_patient_icd_meta_cached(force=False):
+        now_ts = time.time()
+        cached = dashboard_cache["icd_meta"]
+
+        if (
+            not force
+            and cached is not None
+            and (now_ts - dashboard_cache["icd_loaded_at"]) < ICD_META_CACHE_TTL
+        ):
+            return {
+                pid: {
+                    "ICDDate": meta.get("ICDDate"),
+                    "ICDCodes": set(meta.get("ICDCodes", set()))
+                }
+                for pid, meta in cached.items()
+            }
+
+        meta_by_patient = {}
+        patient_docs = db.collection("Patient").select([]).stream()
+
+        for patient_doc in patient_docs:
+            earliest_icd_date = None
+            icd_codes = set()
+
+            notes = patient_doc.reference.collection("MedicalNote").stream()
+            for note in notes:
+                icd_docs = note.reference.collection("ICDcode").stream()
+                for icd_doc in icd_docs:
+                    icd_data = icd_doc.to_dict() or {}
+
+                    for code in (icd_data.get("Adjusted", []) or []):
+                        code_str = str(code).strip().upper()
+                        if code_str:
+                            icd_codes.add(code_str)
+
+                    for code in (icd_data.get("Predicted", []) or []):
+                        code_str = str(code).strip().upper()
+                        if code_str:
+                            icd_codes.add(code_str)
+
+                    adjusted_at = icd_data.get("AdjustedAt")
+                    if adjusted_at:
+                        if isinstance(adjusted_at, datetime):
+                            earliest_icd_date = min(earliest_icd_date, adjusted_at) if earliest_icd_date else adjusted_at
+                        else:
+                            try:
+                                dt = datetime.strptime(str(adjusted_at), "%Y-%m-%d %H:%M:%S")
+                                earliest_icd_date = min(earliest_icd_date, dt) if earliest_icd_date else dt
+                            except Exception:
+                                pass
+
+            meta_by_patient[patient_doc.id] = {
+                "ICDDate": earliest_icd_date,
+                "ICDCodes": icd_codes,
+            }
+
+        dashboard_cache["icd_meta"] = meta_by_patient
+        dashboard_cache["icd_loaded_at"] = now_ts
+
+        return {
+            pid: {
+                "ICDDate": meta.get("ICDDate"),
+                "ICDCodes": set(meta.get("ICDCodes", set()))
+            }
+            for pid, meta in meta_by_patient.items()
+        }
+
 
 
      # loading all blueprints (auth + reset)
@@ -330,36 +460,21 @@ def create_app():
 
     def get_filtered_patients(search_query="", yob_query="", icd_query="", include_meta=False):
         patients = []
-        docs = db.collection("Patient").stream()
+        summaries = get_patient_summaries_cached()
+        icd_meta = get_patient_icd_meta_cached() if (icd_query or include_meta) else {}
 
-        for doc in docs:
-            data = doc.to_dict()
-
-            dob = data.get("DOB")
-            age = None
-            dob_date = None
-
-            if dob:
-                try:
-                    if isinstance(dob, datetime):
-                        dob_date = dob.date()
-                    else:
-                        dob_date = datetime.strptime(str(dob), "%Y-%m-%d").date()
-
-                    age = date.today().year - dob_date.year
-                    if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
-                        age -= 1
-                except:
-                    age = None
-                    dob_date = None
+        for summary in summaries:
+            patient_id = summary.get("ID", "")
+            full_name = (summary.get("FullName") or "").lower()
+            age = summary.get("Age")
+            dob_date = summary.get("DOB_Date")
 
             # -------- NAME / ID FILTER --------
             name_match = True
             if search_query:
-                full_name = data.get("FullName", "").lower()
-                patient_id = doc.id.lower()
+                patient_id_lower = patient_id.lower()
                 name_parts = full_name.split()
-                name_match = any(part.startswith(search_query) for part in name_parts) or patient_id.startswith(search_query)
+                name_match = any(part.startswith(search_query) for part in name_parts) or patient_id_lower.startswith(search_query)
 
             # -------- YEAR OF BIRTH FILTER (DOB year prefix) --------
             yob_match = True
@@ -383,43 +498,22 @@ def create_app():
             if icd_query or include_meta:
                 # Only do the expensive notes scan if needed (icd search OR icd_date sorting)
                 icd_match = False if icd_query else True
+                meta = icd_meta.get(patient_id, {})
 
-                notes = db.collection("Patient").document(doc.id).collection("MedicalNote").stream()
-                for n in notes:
-                    icds = n.reference.collection("ICDcode").stream()
-                    for icd_doc in icds:
-                        d = icd_doc.to_dict()
+                if icd_query:
+                    icd_codes = meta.get("ICDCodes", set())
+                    icd_match = any(code.startswith(icd_query) for code in icd_codes)
 
-                        # For filtering by ICD prefix
-                        if icd_query:
-                            all_codes = (d.get("Adjusted", []) or []) + (d.get("Predicted", []) or [])
-                            if any(str(code).upper().startswith(icd_query) for code in all_codes):
-                                    icd_match = True
-                                    
-
-                        # For sorting by earliest ICD date
-                        if include_meta:
-                            adjusted_at = d.get("AdjustedAt")
-                            if adjusted_at:
-                                if isinstance(adjusted_at, datetime):
-                                    icd_date = min(icd_date, adjusted_at) if icd_date else adjusted_at
-                                else:
-                                    try:
-                                        dt = datetime.strptime(adjusted_at, "%Y-%m-%d %H:%M:%S")
-                                        icd_date = min(icd_date, dt) if icd_date else dt
-                                    except:
-                                        pass
-
-                        if icd_query and icd_match and not include_meta:
-                            break
-                    if icd_query and icd_match and not include_meta:
-                        break
+                if include_meta:
+                    icd_date = meta.get("ICDDate")
 
             if name_match and yob_match and icd_match:
                 patient_obj = {
-                    "ID": doc.id,
-                    "FullName": data.get("FullName", "Unknown"),
-                    "Age": age
+                    "ID": patient_id,
+                    "FullName": summary.get("FullName", "Unknown"),
+                    "Age": age,
+                    "YOB": dob_date.year if dob_date else None,
+                    "DOB": dob_date.isoformat() if dob_date else ""
                 }
 
                 if include_meta:
@@ -436,21 +530,6 @@ def create_app():
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
 
-        search_query = request.args.get("search", "").strip().lower()
-        yob_query = request.args.get("yob", "").strip() or request.args.get("age", "").strip()
-        icd_query = request.args.get("icd", "").strip().upper()
-
-        try:
-            patients = get_filtered_patients(
-                search_query=search_query,
-                yob_query=yob_query,
-                icd_query=icd_query,
-                include_meta=False   
-            )
-        except Exception as e:
-            patients = []
-            flash(f"Error fetching patients: {e}", "danger")
-
         # message after adding patient
         msg_key = request.args.get('msg', '')
         msg_text = {
@@ -459,7 +538,7 @@ def create_app():
         }.get(msg_key, "")
 
 
-        return render_template("dashboard.html", patients=patients, msg_text=msg_text)
+        return render_template("dashboard.html", patients=[], msg_text=msg_text)
 
     @app.route("/api/patients")
     def api_patients():
@@ -471,8 +550,8 @@ def create_app():
         icd_query = request.args.get("icd", "").strip().upper()
         sort = request.args.get("sort", "").strip()
 
-        # Need meta for these sorts
-        include_meta = sort in ("age_young", "age_old", "icd_date")
+        # Only ICD-date sorting needs ICD metadata from nested collections
+        include_meta = sort == "icd_date"
 
         patients = get_filtered_patients(
             search_query=search_query,
@@ -490,16 +569,12 @@ def create_app():
 
         elif sort == "age_young":
             patients.sort(key=lambda x: (
-                x.get("Age") is None,
-                x.get("Age") if x.get("Age") is not None else 0,
                 x.get("DOB_Date") is None,
                 -(x["DOB_Date"].toordinal() if x.get("DOB_Date") else 0)
             ))
 
         elif sort == "age_old":
             patients.sort(key=lambda x: (
-                x.get("Age") is None,
-                -(x.get("Age") if x.get("Age") is not None else 0),
                 x.get("DOB_Date") is None,
                 (x["DOB_Date"].toordinal() if x.get("DOB_Date") else 0)
             ))
@@ -588,6 +663,7 @@ def create_app():
                     "BloodType": blood,
                     "CreatedBy": session['user_id']    #  Doctor who added the patient
                 })
+                invalidate_dashboard_cache()
                 return redirect(url_for("dashboard", msg="added"))
 
         return render_template("add_patient.html", errors=errors)
@@ -731,6 +807,8 @@ def create_app():
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": now
             })
+
+            invalidate_dashboard_cache(icd=True)
 
             return jsonify({"status": "success", "redirect": url_for("dashboard")})
 
@@ -1116,6 +1194,7 @@ def create_app():
                 return jsonify({"error": "Patient not found."}), 404
 
             delete_patient_everything(patient_ref)
+            invalidate_dashboard_cache()
             return jsonify({"status": "success"})
 
         except Exception as e:
@@ -1276,6 +1355,7 @@ def create_app():
                 "Address": address,
                 "BloodType": blood,
             })
+            invalidate_dashboard_cache(summary=True, icd=False)
             return redirect(url_for("view_patient", pid=pid, saved="1"))
 
         # no changes
@@ -1406,6 +1486,8 @@ def create_app():
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": datetime.now()
             })
+
+        invalidate_dashboard_cache(icd=True)
 
         return redirect(url_for("view_patient", pid=pid, saved="1" if changed else "0"))
          #Analysis summary for dashboard
@@ -1640,6 +1722,8 @@ def create_app():
 
             # delete the note itself
             note_ref.delete()
+
+            invalidate_dashboard_cache(icd=True)
 
             return jsonify({"status": "success"})
         except Exception as e:
