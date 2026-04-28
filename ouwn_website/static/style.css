@@ -2636,3 +2636,17 @@ body.dark-mode .reset-container a {
   font-size: 20px;
   line-height: 1;
 }
+
+body.change-password-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.change-password-main {
+    flex: 0 0 auto;
+}
+
+body.change-password-page footer {
+    margin-top: auto;
+}
