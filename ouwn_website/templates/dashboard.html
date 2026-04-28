@@ -8,7 +8,7 @@
     <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
     <script src="/static/theme.js" defer></script>
 </head>
-<body>
+<body class="page-dashboard">
     {% include "header.html" %}
     <div id="banner" class="banner"></div>
 
@@ -52,14 +52,12 @@
     </script>
 
 <div class="list-actions">
-<div class="list-actions">
     <div class="header-buttons">
         <button class="btn-primary add-patient-btn" onclick="location.href='{{ url_for('add_patient') }}'">
             <i class="fa-solid fa-user-plus"></i>
             <span>Add Patient</span>
         </button>
     </div>
-</div>
 
     <!-- Live Search -->
  <div class="view-toggle">
