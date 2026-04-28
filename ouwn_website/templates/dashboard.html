@@ -334,15 +334,15 @@ function renderPatientsTable(patients) {
             <td>${p.FullName}</td>
             <td>${p.ID}</td>
             <td>
-                <button class="btn-secondary" onclick="location.href='/add_note?pid=${p.ID}'">
-                    <i class="fa-solid fa-file-medical"></i>
-                </button>
-                <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-                <button class="btn-danger delete-btn" data-id="${p.ID}">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+              <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
+                <i class="fa-solid fa-file-medical"></i>
+              </button>
+              <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
+                  <i class="fa-solid fa-eye"></i>
+              </button>
+              <button class="btn-danger delete-btn" data-id="${p.ID}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
             </td>
         `;
         tableBody.appendChild(tr);
