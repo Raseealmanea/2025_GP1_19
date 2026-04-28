@@ -13,6 +13,102 @@
  
 
   <style>
+
+
+/* =========================
+   INFO ICON - FINAL
+   ========================= */
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.card-title-row h3 {
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  line-height: 1.2;
+}
+
+.info-icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 2px solid #b08df7;
+  background: #f3ecff;
+  color: #2d1b4e !important;
+  font-size: 14px;
+  font-weight: 900;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  position: relative;
+  z-index: 50;
+}
+
+.info-icon:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 32px;
+  right: 0;
+  width: 230px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3ecff;
+  color: #2d1b4e;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  z-index: 9999;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+body.dark-mode .info-icon {
+  background: #f3ecff;
+  color: #2d1b4e !important;
+  border-color: #d8c9f5;
+}
+
+body.dark-mode .info-icon:hover::after {
+  background: #f3ecff;
+  color: #2d1b4e;
+}
+
+/* FIX TITLE + ICON ALIGNMENT */
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;   /* keep top alignment */
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* THIS IS THE IMPORTANT FIX */
+.card-title-row h3 {
+  margin: 0;
+  line-height: 1.25;
+  max-width: calc(100% - 34px); /* prevents overlap with icon */
+  word-break: break-word;
+}
+
+/* keep icon stable */
+.info-icon {
+  flex-shrink: 0;
+  margin-top: 2px; /* small visual alignment fix */
+}
+
+
   .analysis-wrap {
     max-width: 1120px;
     width: 100%;
@@ -413,6 +509,8 @@
     opacity: 1;
   }
 
+
+
   /* =========================
      RESPONSIVE
      ========================= */
@@ -442,6 +540,13 @@
     .chart-canvas-wrap {
       height: 300px;
     }
+
+
+
+
+
+    
+
   }
 </style>
 </head>
@@ -628,14 +733,21 @@
   let selectedGraphType = "pie";
   let patientStatsChart = null;
 
-  function createCard(title, value, sub = "") {
-    return `
-      <div class="analysis-card">
-        <h3>${title}</h3>
-        <div class="analysis-value">${value}</div>
-        <div class="analysis-sub">${sub}</div>
-      </div>
-    `;
+  function createCard(title, value, sub = "", tooltip = "") {
+    const infoIcon = tooltip
+      ? '<span class="info-icon" data-tooltip="' + tooltip + '">i</span>'
+      : "";
+
+    return (
+      '<div class="analysis-card">' +
+        '<div class="card-title-row">' +
+          '<h3>' + title + '</h3>' +
+          infoIcon +
+        '</div>' +
+        '<div class="analysis-value">' + value + '</div>' +
+        '<div class="analysis-sub">' + sub + '</div>' +
+      '</div>'
+    );
   }
 
   function icdSortKey(code) {
@@ -740,11 +852,25 @@
       ${createCard("Average Chosen Threshold", `${summary.average_threshold ?? 0}%`, "Saved threshold from users")}
     `;
 
-    document.getElementById("adjustedInsightsCards").innerHTML = `
-      ${createCard("Model Miss Rate", `${adjustedInsights.model_miss_rate ?? 0}%`, "Adjusted codes not predicted by the model")}
-      ${createCard("Adjusted-only Codes Count", adjustedInsights.adjusted_only_codes_count ?? 0, "Codes manually added because the model missed them")}
-      ${createCard("Total ICD Codes Saved", adjustedInsights.total_saved_icd_codes ?? 0, "Predicted codes plus manually added adjusted codes")}
-    `;
+    document.getElementById("adjustedInsightsCards").innerHTML =
+      createCard(
+        "Model Miss Rate",
+        (adjustedInsights.model_miss_rate ?? 0) + "%",
+        "Adjusted codes not predicted by the model",
+        "The percentage of final adjusted ICD codes that were manually added because they were not predicted by the model."
+      ) +
+      createCard(
+        "Adjusted-only Codes Count",
+        adjustedInsights.adjusted_only_codes_count ?? 0,
+        "Codes manually added because the model missed them",
+        "The number of ICD codes that users added manually and were not included in the model predictions."
+      ) +
+      createCard(
+        "Total ICD Codes Saved",
+        adjustedInsights.total_saved_icd_codes ?? 0,
+        "Predicted codes plus manually added adjusted codes",
+        "The total number of ICD codes saved, including accepted predicted codes and manually added adjusted codes."
+      );
     renderAdjustedIcdChart(adjustedInsights);
 
     const rangesContainer = document.getElementById("confidenceRanges");
