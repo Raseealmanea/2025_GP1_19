@@ -59,7 +59,7 @@ class PLMICD(nn.Module):
             model_path, num_labels=num_classes, finetuning_task=None
         )
 
-        # ✅ safer load
+  
         self.roberta = RobertaModel.from_pretrained(
             model_path, config=self.config, add_pooling_layer=False
         )
