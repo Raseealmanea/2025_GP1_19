@@ -177,7 +177,7 @@
     <option value="all">All Dates</option>
     <option value="7">Last 7 days</option>
     <option value="30">Last 30 days</option>
-    <option value="365">Last year</option>
+    <option value="365">Last 365 days</option>
   </select>
   </div>
 
@@ -210,7 +210,7 @@ data-text="{{ n.note_text | e }}"
 data-date="{{ n.created_iso }}"
      data-adjusted="{{ '1' if n.icd_codes_str else '0' }}"
      data-predicted="{{ '1' if n.predicted_codes_str else '0' }}"
-     data-icd-count="{{ (n.icd_codes_str.split(',') | length) if n.icd_codes_str else 0 }}">
+     data-icd-count="{{ ((n.icd_codes_str.split(',') | length) if n.icd_codes_str else 0) + ((n.predicted_codes_str.split(',') | length) if n.predicted_codes_str else 0) }}">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <div>
             <strong>Note</strong>
@@ -1236,6 +1236,8 @@ function filterNotes() {
 
   document.getElementById("noResultsMsg").style.display =
     visibleNotes.length === 0 ? "block" : "none";
+
+  sortNotes();
 }
 
 
@@ -1255,8 +1257,10 @@ function sortNotes() {
       return new Date(a.dataset.date) - new Date(b.dataset.date);
     }
     if (sortType === "most_icd") {
-      return b.dataset.icdCount - a.dataset.icdCount;
+      return parseInt(b.dataset.icdCount || "0", 10) - parseInt(a.dataset.icdCount || "0", 10);
     }
+
+    return 0;
   });
 
   notes.forEach(n => container.appendChild(n));
