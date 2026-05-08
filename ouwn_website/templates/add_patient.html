@@ -1,270 +1,289 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Add Patient</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-      <script src="/static/theme.js" defer></script>
+  <meta charset="utf-8">
+  <title>Add Patient</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="/static/theme.js" defer></script>
 </head>
+
 <body class="form-page medical-note page-add-patient">
-  
-{% include "header.html" %}
-<nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
-  <div class="ouwn-crumbs">
-    <a class="crumb" href="{{ url_for('dashboard') }}">
-      <i class="fa-solid fa-house"></i>
-      <span>Dashboard</span>
-    </a>
-    <span class="sep" aria-hidden="true">/</span>
-    <span class="crumb current" aria-current="page">
-      <i class="fa-solid fa-user"></i>
-      <span>add patient</span>
-    </span>
-  </div>
-</nav>
-
-<main class="container card" style="padding:24px 24px 16px;">
-  <h1 style="margin-top:0">Add Patient</h1>
-
-  {% if errors %}
-  <div class="alert error" style="margin-bottom:16px">
-    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
-  </div>
-  {% endif %}
-
-  <form id="patientForm" method="POST" novalidate>
-    
-    <!-- Full Name -->
-    <div class='row'>
-      <label for='full_name'>Full Name<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='full_name' name='full_name' type='text' required value="{{ request.form.get('full_name', '') }}">
-        <div class='feedback'></div>
-      </div>
+ <!-- Header --> 
+  {% include "header.html" %}
+  <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
+    <div class="ouwn-crumbs">
+      <a class="crumb" href="{{ url_for('dashboard') }}">
+        <i class="fa-solid fa-house"></i>
+        <span>Dashboard</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="crumb current" aria-current="page">
+        <i class="fa-solid fa-user"></i>
+        <span>add patient</span>
+      </span>
     </div>
+  </nav>
 
-    <!-- Date of Birth -->
-    <div class='row'>
-      <label for='dob'>Date of Birth<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='dob' name='dob' type='date' required value="{{ request.form.get('dob', '') }}">
-        <div class='feedback'></div>
-      </div>
-    </div>
+  <main class="container card" style="padding:24px 24px 16px;">
+    <h1 style="margin-top:0">Add Patient</h1>
 
-    <!-- Gender -->
-    <div class="row">
-      <label for="gender">Gender<span class="required">*</span></label>
-      <div class="control custom-select-wrapper">
-        <select id="gender" name="gender" required>
-          <option value="">Select</option>
-          <option value="M" {% if request.form.get('gender') == 'M' %}selected{% endif %}>Male</option>
-          <option value="F" {% if request.form.get('gender') == 'F' %}selected{% endif %}>Female</option>
-        </select>
-        <div class="feedback"></div>
-      </div>
-    </div>
-
-    <!-- National ID -->
-    <div class='row'>
-      <label for='ID'>National ID / Iqama<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='ID' name='ID' type='text' maxlength='10' minlength='10' required
-          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
-          value="{{ request.form.get('ID', '') }}">
-        <div class='feedback'></div>
-      </div>
-    </div>
-
-    <!-- Phone -->
-    <div class='row'>
-      <label for='phone'>Phone<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='phone' name='phone' type='tel' maxlength='10' minlength='10' required
-          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
-          value="{{ request.form.get('phone', '') }}">
-        <div class='feedback'></div>
-      </div>
-    </div>
-
-    <!-- Email -->
-    <div class='row'>
-      <label for='email'>Email<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='email' name='email' type='email' required value="{{ request.form.get('email', '') }}">
-        <div class='feedback'></div>
-      </div>
-    </div>
-
-    <!-- Address -->
-    <div class='row'>
-      <label for='address'>Address<span class='required'>*</span></label>
-      <div class='control'>
-        <input id='address' name='address' type='text' required value="{{ request.form.get('address', '') }}">
-        <div class='feedback'></div>
-      </div>
-    </div>
-
-    <!-- Blood Type -->
-    <div class="row">
-      <label for="blood_type">Blood Type<span class="required">*</span></label>
-      <div class="control custom-select-wrapper">
-        <select id="blood_type" name="blood_type" required>
-          <option value="">Select</option>
-          {% for b in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
-            <option value="{{ b }}" {% if request.form.get('blood_type') == b %}selected{% endif %}>{{ b }}</option>
+    <!-- Error Messages -->
+    {% if errors %}
+      <div class="alert error" style="margin-bottom:16px">
+        <ul>
+          {% for e in errors %}
+            <li>{{ e }}</li>
           {% endfor %}
-        </select>
-        <div class="feedback"></div>
+        </ul>
       </div>
-    </div>
+    {% endif %}
 
-    <div class="row actions">
-      <button type='submit'>Add Patient</button>
-    </div>
-  </form>
-</main>
+    <!-- Patient Form -->
+    <form id="patientForm" method="POST" novalidate>
+      
+      <!-- Full Name -->
+      <div class='row'>
+        <label for='full_name'>Full Name<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='full_name' name='full_name' type='text' required value="{{ request.form.get('full_name', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-<script>
-// Helper to set UI
-function setValidity(input, ok, msg){
-  const fb = input.closest('.control').querySelector('.feedback');
-  input.classList.toggle('is-valid', ok);
-  input.classList.toggle('is-invalid', !ok);
-  fb.textContent = ok ? "" : msg || "";
-  fb.classList.toggle('valid', ok);
-}
+      <!-- Date of Birth -->
+      <div class='row'>
+        <label for='dob'>Date of Birth<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='dob' name='dob' type='date' required value="{{ request.form.get('dob', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-/* LIVE VALIDATION ONLY FOR: DOB, ID, PHONE, EMAIL */
+      <!-- Gender -->
+      <div class="row">
+        <label for="gender">Gender<span class="required">*</span></label>
+        <div class="control custom-select-wrapper">
+          <select id="gender" name="gender" required>
+            <option value="">Select</option>
+            <option value="M" {% if request.form.get('gender') == 'M' %}selected{% endif %}>Male</option>
+            <option value="F" {% if request.form.get('gender') == 'F' %}selected{% endif %}>Female</option>
+          </select>
+          <div class="feedback"></div>
+        </div>
+      </div>
 
-// DOB
-const dob = document.getElementById('dob');
-function checkDob() {
-  const v = dob.value;
-  if (!v) { setValidity(dob, false, "Date of Birth is required."); return; }
-  const d = new Date(v + "T00:00:00");
-  if (isNaN(d.getTime())) { setValidity(dob, false, "Invalid date."); return; }
-  const now = new Date();
-  if (d > now) { setValidity(dob, false, "Date of Birth cannot be in the future."); return; }
-  let age = now.getFullYear() - d.getFullYear();
-  const mdNow = (now.getMonth()+1)*100 + now.getDate();
-  const mdDob = (d.getMonth()+1)*100 + d.getDate();
-  if (mdDob > mdNow) age--;
-  if (age > 130) { setValidity(dob, false, "Age cannot exceed 130 years."); return; }
-  setValidity(dob, true);
-}
-dob.addEventListener('input', checkDob);
-dob.addEventListener('change', checkDob);
+      <!-- National ID -->
+      <div class='row'>
+        <label for='ID'>National ID / Iqama<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='ID' name='ID' type='text' maxlength='10' minlength='10' required
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
+            value="{{ request.form.get('ID', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-// ID: 10 digits + duplicate check
-let idTimer;
-const idInput = document.getElementById('ID');
-idInput.addEventListener('input', ()=>{
-  const v = idInput.value.trim();
-  if (!/^\d{10}$/.test(v)) { setValidity(idInput, false, "Must be exactly 10 digits."); return; }
-  clearTimeout(idTimer);
-  idTimer = setTimeout(()=>{
-   fetch(`/check_id?v=${encodeURIComponent(v)}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.exists) {
-          setValidity(idInput, false, "This ID already exists.");
-        } else {
-          setValidity(idInput, true);
-        }
-      })
-      .catch(() => setValidity(idInput, true)); // fallback
-  }, 300);
-});
+      <!-- Phone -->
+      <div class='row'>
+        <label for='phone'>Phone<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='phone' name='phone' type='tel' maxlength='10' minlength='10' required
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10);"
+            value="{{ request.form.get('phone', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-// Phone
-const phone = document.getElementById('phone');
-phone.addEventListener('input', ()=>{
-  const ok = /^05\d{8}$/.test(phone.value.trim());
-  setValidity(phone, ok, "Must start with 05 and be 10 digits.");
-});
+      <!-- Email -->
+      <div class='row'>
+        <label for='email'>Email<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='email' name='email' type='email' required value="{{ request.form.get('email', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-// Email
-const email = document.getElementById('email');
-email.addEventListener('input', ()=>{
-  const ok = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email.value.trim());
-  setValidity(email, ok, "Invalid email format.");
-});
-</script>
-<script>
-  document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
-  const select = wrapper.querySelector("select");
+      <!-- Address -->
+      <div class='row'>
+        <label for='address'>Address<span class='required'>*</span></label>
+        <div class='control'>
+          <input id='address' name='address' type='text' required value="{{ request.form.get('address', '') }}">
+          <div class='feedback'></div>
+        </div>
+      </div>
 
-  const custom = document.createElement("div");
-  custom.className = "custom-select";
+      <!-- Blood Type -->
+      <div class="row">
+        <label for="blood_type">Blood Type<span class="required">*</span></label>
+        <div class="control custom-select-wrapper">
+          <select id="blood_type" name="blood_type" required>
+            <option value="">Select</option>
+            {% for b in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+              <option value="{{ b }}" {% if request.form.get('blood_type') == b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+          </select>
+          <div class="feedback"></div>
+        </div>
+      </div>
 
-  const selected = document.createElement("div");
-  selected.className = "custom-select-selected";
-  const selectedLabel = document.createElement("span");
-  selectedLabel.className = "custom-select-selected-label";
-  const selectedArrow = document.createElement("span");
-  selectedArrow.className = "custom-select-selected-arrow";
-  selectedArrow.setAttribute("aria-hidden", "true");
-  selectedArrow.innerHTML = "&#9662;";
+      <div class="row actions">
+        <button type='submit'>Add Patient</button>
+      </div>
+    </form>
+  </main>
 
-  const items = document.createElement("div");
-  items.className = "custom-select-items";
+  <script>
+  // Helper to set UI
+    function setValidity(input, ok, msg){
+      const fb = input.closest('.control').querySelector('.feedback');
+      input.classList.toggle('is-valid', ok);
+      input.classList.toggle('is-invalid', !ok);
+      fb.textContent = ok ? "" : msg || "";
+      fb.classList.toggle('valid', ok);
+    }
 
-  if (select.disabled) {
-    custom.classList.add("disabled");
-  }
+    /* LIVE VALIDATION ONLY FOR: DOB, ID, PHONE, EMAIL */
 
-  function renderOptions() {
-    items.innerHTML = ""; // 🔥 clear old options
+    // DOB
+    const dob = document.getElementById('dob');
+    function checkDob() {
+      const v = dob.value;
+      if (!v) { setValidity(dob, false, "Date of Birth is required."); return; }
+      const d = new Date(v + "T00:00:00");
+      if (isNaN(d.getTime())) { setValidity(dob, false, "Invalid date."); return; }
+      const now = new Date();
+      if (d > now) { setValidity(dob, false, "Date of Birth cannot be in the future."); return; }
+      let age = now.getFullYear() - d.getFullYear();
+      const mdNow = (now.getMonth()+1)*100 + now.getDate();
+      const mdDob = (d.getMonth()+1)*100 + d.getDate();
+      if (mdDob > mdNow) age--;
+      if (age > 130) { setValidity(dob, false, "Age cannot exceed 130 years."); return; }
+      setValidity(dob, true);
+    }
+    dob.addEventListener('input', checkDob);
+    dob.addEventListener('change', checkDob);
 
-    Array.from(select.options).forEach((option, index) => {
-      // 🚫 Skip placeholder + selected
-      if (option.value === "" || option.disabled || index === select.selectedIndex) return;
-
-      const div = document.createElement("div");
-      div.textContent = option.text;
-
-      div.addEventListener("click", () => {
-        if (select.disabled) return;
-
-        select.selectedIndex = index;
-        select.dispatchEvent(new Event("change"));
-
-        selectedLabel.textContent = option.text;
-
-        renderOptions(); // 🔥 rebuild list after change
-        custom.classList.remove("open");
-      });
-
-      items.appendChild(div);
+    // ID: 10 digits + duplicate check
+    let idTimer;
+    const idInput = document.getElementById('ID');
+    idInput.addEventListener('input', ()=>{
+      const v = idInput.value.trim();
+      if (!/^\d{10}$/.test(v)) { setValidity(idInput, false, "Must be exactly 10 digits."); return; }
+      clearTimeout(idTimer);
+      idTimer = setTimeout(()=>{
+      fetch(`/check_id?v=${encodeURIComponent(v)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d.exists) {
+              setValidity(idInput, false, "This ID already exists.");
+            } else {
+              setValidity(idInput, true);
+            }
+          })
+          .catch(() => setValidity(idInput, true)); // fallback
+      }, 300);
     });
-  }
 
-  // Initial value
-  selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
+    // Phone check
+    const phone = document.getElementById('phone');
+    phone.addEventListener('input', ()=>{
+      const ok = /^05\d{8}$/.test(phone.value.trim());
+      setValidity(phone, ok, "Must start with 05 and be 10 digits.");
+    });
 
-  renderOptions();
+    // Email check
+    const email = document.getElementById('email');
+    email.addEventListener('input', ()=>{
+      const ok = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email.value.trim());
+      setValidity(email, ok, "Invalid email format.");
+    });
+    
+    // Custom select
+    document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
+    const select = wrapper.querySelector("select");
+    
+    // Create custom select container
+    const custom = document.createElement("div");
+    custom.className = "custom-select";
 
-  selected.addEventListener("click", (e) => {
-    if (select.disabled) return;
+     // Create selected area      
+    const selected = document.createElement("div");
+    selected.className = "custom-select-selected";
+    
+    // Create selected label
+    const selectedLabel = document.createElement("span");
+    selectedLabel.className = "custom-select-selected-label";
 
-    e.stopPropagation();
-    const wasOpen = custom.classList.contains("open");
-    document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-    if (!wasOpen) custom.classList.add("open");
+    // Create arrow icon
+    const selectedArrow = document.createElement("span");
+    selectedArrow.className = "custom-select-selected-arrow";
+    selectedArrow.setAttribute("aria-hidden", "true");
+    selectedArrow.innerHTML = "&#9662;";
+
+    // Create options container  
+    const items = document.createElement("div");
+    items.className = "custom-select-items";
+
+    // Check disabled state
+    if (select.disabled) {
+      custom.classList.add("disabled");
+    }
+
+    function renderOptions() {
+      items.innerHTML = ""; //  clear old options
+
+      Array.from(select.options).forEach((option, index) => {
+        //  Skip placeholder + selected
+        if (option.value === "" || option.disabled || index === select.selectedIndex) return;
+
+        const div = document.createElement("div");
+        div.textContent = option.text;
+
+        div.addEventListener("click", () => {
+          if (select.disabled) return;
+
+          select.selectedIndex = index;
+          select.dispatchEvent(new Event("change"));
+
+          selectedLabel.textContent = option.text;
+
+          renderOptions(); //  rebuild list after change
+          custom.classList.remove("open");
+        });
+
+        items.appendChild(div);
+      });
+    }
+
+    // Initial value
+    selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
+
+    renderOptions();
+
+     // Toggle dropdown
+    selected.addEventListener("click", (e) => {
+      if (select.disabled) return;
+
+      e.stopPropagation();
+      const wasOpen = custom.classList.contains("open");
+      document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+      if (!wasOpen) custom.classList.add("open");
+    });
+
+    selected.appendChild(selectedLabel);
+    selected.appendChild(selectedArrow);
+    custom.appendChild(selected);
+    custom.appendChild(items);
+    wrapper.appendChild(custom);
   });
 
-  selected.appendChild(selectedLabel);
-  selected.appendChild(selectedArrow);
-  custom.appendChild(selected);
-  custom.appendChild(items);
-  wrapper.appendChild(custom);
-});
-
-document.addEventListener("click", () => {
-  document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-});
-</script>
+  // Close all dropdowns
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+  });
+  </script>
 </body>
 </html>
