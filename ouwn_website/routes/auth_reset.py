@@ -135,7 +135,7 @@ def reset_request():
         # Check if email exists
         users = db.collection("HealthCareP").where("Email", "==", email).get()
         if not users:
-            return render_template("reset_password.html", message="No account found with this email.")
+            return render_template("reset_password.html", message="✅ If an account exists with this email, a password reset link has been sent. Please check your inbox.")
 
         user_doc = users[0].to_dict()
         
@@ -150,7 +150,7 @@ def reset_request():
         # Send email 
         try:
             if send_brevo_email(email, subject, html_body, text_body):
-                message = "✅ A reset email has been sent! Check your inbox."
+                message = "✅ If an account exists with this email, a password reset link has been sent. Please check your inbox."
             else:
                 message = "Failed to send email. Please try again later."
         except Exception as e:
