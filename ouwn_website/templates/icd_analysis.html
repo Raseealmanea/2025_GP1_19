@@ -8,12 +8,7 @@
   <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
   <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
-
- 
-
   <style>
-
 
 /* =========================
    INFO ICON - FINAL
@@ -509,8 +504,6 @@ body.dark-mode .info-icon:hover::after {
     opacity: 1;
   }
 
-
-
   /* =========================
      RESPONSIVE
      ========================= */
@@ -541,567 +534,642 @@ body.dark-mode .info-icon:hover::after {
       height: 300px;
     }
 
-
-
-
-
-    
-
   }
 </style>
 </head>
 <body class="form-page medical-note">
 
-{% include "header.html" %}
+  <!-- Page header -->
+  {% include "header.html" %}
 
-<nav class="ouwn-breadcrumb-bar" role="navigation">
-  <div class="ouwn-crumbs">
-    <a class="crumb" href="{{ url_for('dashboard') }}">
-      <i class="fa-solid fa-house"></i> <span>Dashboard</span>
-    </a>
-    <span class="sep">/</span>
-    <span class="crumb current">
-      <i class="fa-solid fa-chart-column"></i> <span>ICD Prediction Analysis</span>
-    </span>
-  </div>
-</nav>
-
-<main class="analysis-wrap">
-  <h1 style="margin-bottom:18px;">ICD Prediction Analysis</h1>
-
-  <div id="summaryCards" class="analysis-grid">
-  <div class="analysis-card">
-    <h3>Loading</h3>
-    <div class="analysis-value">...</div>
-    <div class="analysis-sub">Loading analysis summary...</div>
-  </div>
-  <div class="analysis-card">
-    <h3>Loading</h3>
-    <div class="analysis-value">...</div>
-    <div class="analysis-sub">Loading analysis summary...</div>
-  </div>
-  <div class="analysis-card">
-    <h3>Loading</h3>
-    <div class="analysis-value">...</div>
-    <div class="analysis-sub">Loading analysis summary...</div>
-  </div>
-  <div class="analysis-card">
-    <h3>Loading</h3>
-    <div class="analysis-value">...</div>
-    <div class="analysis-sub">Loading analysis summary...</div>
-  </div>
-  <div class="analysis-card">
-    <h3>Loading</h3>
-    <div class="analysis-value">...</div>
-    <div class="analysis-sub">Loading analysis summary...</div>
-  </div>
-</div>
-
-<div class="section-box">
-  <h2>Adjusted ICD Code Insights</h2>
-
-  <div id="adjustedInsightsCards" class="analysis-grid">
-    <div class="analysis-card">
-      <h3>Loading</h3>
-      <div class="analysis-value">...</div>
-      <div class="analysis-sub">Loading adjusted ICD insights...</div>
+  <!-- Breadcrumb navigation -->
+  <nav class="ouwn-breadcrumb-bar" role="navigation">
+    <div class="ouwn-crumbs">
+      <a class="crumb" href="{{ url_for('dashboard') }}">
+        <i class="fa-solid fa-house"></i> <span>Dashboard</span>
+      </a>
+      <span class="sep">/</span>
+      <span class="crumb current">
+        <i class="fa-solid fa-chart-column"></i> <span>ICD Prediction Analysis</span>
+      </span>
     </div>
-    <div class="analysis-card">
-      <h3>Loading</h3>
-      <div class="analysis-value">...</div>
-      <div class="analysis-sub">Loading adjusted ICD insights...</div>
-    </div>
-    <div class="analysis-card">
-      <h3>Loading</h3>
-      <div class="analysis-value">...</div>
-      <div class="analysis-sub">Loading adjusted ICD insights...</div>
-    </div>
-  </div>
+  </nav>
 
-  <div class="chart-wrap" style="margin-top: 16px;">
-    <div class="chart-canvas-wrap">
-      <canvas id="adjustedIcdChart"></canvas>
-    </div>
-  </div>
-</div>
+  <!-- Main analysis page content -->
+  <main class="analysis-wrap">
+    <h1 style="margin-bottom:18px;">ICD Prediction Analysis</h1>
 
-<div class="section-box">
-    <h2>Patient Statistics by ICD Code</h2>
-
-    <div class="stats-toolbar">
-  <div class="stats-row">
-    <label for="statsCodeInput" class="toolbar-label">ICD code</label>
-    <input
-      type="text"
-      id="statsCodeInput"
-      class="stats-input"
-      placeholder="e.g. K71.3"
-    >
-  </div>
-
-  <div class="stats-row">
-    <span class="toolbar-label">Statistic Type</span>
-    <div class="stats-button-group" id="statTypeButtons">
-      <button type="button" class="toggle-btn active" data-stat-type="gender">Gender</button>
-      <button type="button" class="toggle-btn" data-stat-type="age">Age</button>
-      <button type="button" class="toggle-btn" data-stat-type="blood_type">Blood Type</button>
-    </div>
-  </div>
-
-  <div class="stats-row">
-    <span class="toolbar-label">Chart type</span>
-    <div class="stats-button-group" id="graphTypeButtons">
-      <button type="button" class="toggle-btn active" data-graph-type="pie">Pie Chart</button>
-      <button type="button" class="toggle-btn" data-graph-type="bar">Bar Chart</button>
-    </div>
-
-    <button type="button" class="generate-btn" id="generateStatsBtn">Generate</button>
-  </div>
-</div>
-
-    <div class="helper-text">
-      Counts unique patients once if the ICD code appears in either Adjusted or Predicted codes.
-    </div>
-
-    <div id="statsSummary" class="stats-summary" style="margin-top:16px;"></div>
-
-    <div class="chart-wrap">
-      <div class="chart-canvas-wrap">
-        <canvas id="patientStatsChart"></canvas>
+    <!-- Summary cards loaded dynamically from the backend -->
+    <div id="summaryCards" class="analysis-grid">
+      <div class="analysis-card">
+        <h3>Loading</h3>
+        <div class="analysis-value">...</div>
+        <div class="analysis-sub">Loading analysis summary...</div>
       </div>
-      <div id="statsEmptyState" class="empty-state">Enter an ICD code and generate a chart.</div>
-    </div>
-  </div>
-
-  <div class="section-box">
-    <h2>Acceptance by Confidence Range</h2>
-    <div id="confidenceRanges" class="range-list">
-  <div class="empty-state">Loading confidence ranges...</div>
-</div>
-  </div>
-
-  <div class="section-box">
-    <h2>Top ICD Codes</h2>
-
-    <div class="table-toolbar">
-      <label for="codeSearch" class="toolbar-label">Search by ICD code</label>
-      <input
-        type="text"
-        id="codeSearch"
-        class="search-input"
-        placeholder="e.g. I82, K71..."
-      >
-
-      <label for="sortMode" class="toolbar-label">Sort by</label>
-      <select id="sortMode" class="sort-select">
-        <option value="acceptance">Acceptance Rate</option>
-        <option value="icd">ICD Code</option>
-      </select>
+      <div class="analysis-card">
+        <h3>Loading</h3>
+        <div class="analysis-value">...</div>
+        <div class="analysis-sub">Loading analysis summary...</div>
+      </div>
+      <div class="analysis-card">
+        <h3>Loading</h3>
+        <div class="analysis-value">...</div>
+        <div class="analysis-sub">Loading analysis summary...</div>
+      </div>
+      <div class="analysis-card">
+        <h3>Loading</h3>
+        <div class="analysis-value">...</div>
+        <div class="analysis-sub">Loading analysis summary...</div>
+      </div>
+      <div class="analysis-card">
+        <h3>Loading</h3>
+        <div class="analysis-value">...</div>
+        <div class="analysis-sub">Loading analysis summary...</div>
+      </div>
     </div>
 
-    <div class="analysis-table-wrap">
-      <table class="analysis-table">
-        <thead>
-          <tr>
-            <th>ICD Code</th>
-            <th>Total Predictions</th>
-            <th>Accepted</th>
-            <th>Acceptance Rate</th>
-            <th>Average Confidence</th>
-           
-          </tr>
-        </thead>
-        <tbody id="codeTableBody">
-  <tr>
-    <td colspan="5" class="empty-state">Loading ICD code table...</td>
-  </tr>
-</tbody>
-      </table>
+    <!-- Adjusted ICD insights section -->
+    <div class="section-box">
+      <h2>Adjusted ICD Code Insights</h2>
+
+      <!-- Cards showing manually adjusted ICD insights -->
+      <div id="adjustedInsightsCards" class="analysis-grid">
+        <div class="analysis-card">
+          <h3>Loading</h3>
+          <div class="analysis-value">...</div>
+          <div class="analysis-sub">Loading adjusted ICD insights...</div>
+        </div>
+        <div class="analysis-card">
+          <h3>Loading</h3>
+          <div class="analysis-value">...</div>
+          <div class="analysis-sub">Loading adjusted ICD insights...</div>
+        </div>
+        <div class="analysis-card">
+          <h3>Loading</h3>
+          <div class="analysis-value">...</div>
+          <div class="analysis-sub">Loading adjusted ICD insights...</div>
+        </div>
+      </div>
+
+      <!-- Chart comparing predicted and manually added ICD codes -->
+      <div class="chart-wrap" style="margin-top: 16px;">
+        <div class="chart-canvas-wrap">
+          <canvas id="adjustedIcdChart"></canvas>
+        </div>
+      </div>
     </div>
-  </div>
 
-  
-</main>
+     <!-- Patient statistics section -->
+    <div class="section-box">
+        <h2>Patient Statistics by ICD Code</h2>
 
-<footer>
-  <p>&copy; 2025 OuwN. All Rights Reserved.</p>
-</footer>
+        <div class="stats-toolbar">
+          <div class="stats-row">
+            <label for="statsCodeInput" class="toolbar-label">ICD code</label>
+            <input
+              type="text"
+              id="statsCodeInput"
+              class="stats-input"
+              placeholder="e.g. K71.3"
+            >
+          </div>
 
-<script>
-  let allCodes = [];
-  let selectedStatType = "gender";
-  let selectedGraphType = "pie";
-  let patientStatsChart = null;
+          <div class="stats-row">
+            <span class="toolbar-label">Statistic Type</span>
+            <div class="stats-button-group" id="statTypeButtons">
+              <button type="button" class="toggle-btn active" data-stat-type="gender">Gender</button>
+              <button type="button" class="toggle-btn" data-stat-type="age">Age</button>
+              <button type="button" class="toggle-btn" data-stat-type="blood_type">Blood Type</button>
+            </div>
+          </div>
 
-  function createCard(title, value, sub = "", tooltip = "") {
-    const infoIcon = tooltip
-      ? '<span class="info-icon" data-tooltip="' + tooltip + '">i</span>'
-      : "";
+          <div class="stats-row">
+            <span class="toolbar-label">Chart type</span>
+            <div class="stats-button-group" id="graphTypeButtons">
+              <button type="button" class="toggle-btn active" data-graph-type="pie">Pie Chart</button>
+              <button type="button" class="toggle-btn" data-graph-type="bar">Bar Chart</button>
+            </div>
 
-    return (
-      '<div class="analysis-card">' +
-        '<div class="card-title-row">' +
-          '<h3>' + title + '</h3>' +
-          infoIcon +
-        '</div>' +
-        '<div class="analysis-value">' + value + '</div>' +
-        '<div class="analysis-sub">' + sub + '</div>' +
-      '</div>'
-    );
-  }
+            <button type="button" class="generate-btn" id="generateStatsBtn">Generate</button>
+          </div>
+        </div>
 
-  function icdSortKey(code) {
-    const clean = String(code || "").trim().toUpperCase();
-    const match = clean.match(/^([A-Z0-9]+?)(\d+)(?:\.(.*))?$/);
+      <div class="helper-text">
+        Counts unique patients once if the ICD code appears in either Adjusted or Predicted codes.
+      </div>
 
-    if (!match) {
+      <!-- Patient statistics summary cards -->
+      <div id="statsSummary" class="stats-summary" style="margin-top:16px;"></div>
+
+       <!-- Patient statistics chart -->
+      <div class="chart-wrap">
+        <div class="chart-canvas-wrap">
+          <canvas id="patientStatsChart"></canvas>
+        </div>
+        <div id="statsEmptyState" class="empty-state">Enter an ICD code and generate a chart.</div>
+      </div>
+    </div>
+
+     <!-- Confidence range section -->
+    <div class="section-box">
+      <h2>Acceptance by Confidence Range</h2>
+      <div id="confidenceRanges" class="range-list">
+        <div class="empty-state">Loading confidence ranges...</div>
+      </div>
+    </div>
+
+    <!-- Top ICD codes table section -->
+    <div class="section-box">
+      <h2>Top ICD Codes</h2>
+
+      <!-- Search and sorting toolbar -->
+      <div class="table-toolbar">
+        <label for="codeSearch" class="toolbar-label">Search by ICD code</label>
+        <input
+          type="text"
+          id="codeSearch"
+          class="search-input"
+          placeholder="e.g. I82, K71..."
+        >
+
+        <label for="sortMode" class="toolbar-label">Sort by</label>
+        <select id="sortMode" class="sort-select">
+          <option value="acceptance">Acceptance Rate</option>
+          <option value="icd">ICD Code</option>
+        </select>
+      </div>
+
+       <!-- ICD statistics table -->
+      <div class="analysis-table-wrap">
+        <table class="analysis-table">
+          <thead>
+            <tr>
+              <th>ICD Code</th>
+              <th>Total Predictions</th>
+              <th>Accepted</th>
+              <th>Acceptance Rate</th>
+              <th>Average Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="codeTableBody">
+            <tr>
+            <td colspan="5" class="empty-state">Loading ICD code table...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div> 
+  </main>
+
+   <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 OuwN. All Rights Reserved.</p>
+  </footer>
+
+  <script>
+    // Stores all ICD codes returned from the backend.
+    let allCodes = [];
+    // Stores the selected patient statistic type.
+    let selectedStatType = "gender";
+    // Stores the selected chart type.
+    let selectedGraphType = "pie";
+    // Stores the patient statistics chart instance.
+    let patientStatsChart = null;
+
+      /* =========================
+       CREATE REUSABLE CARD
+       ========================= */
+    function createCard(title, value, sub = "", tooltip = "") {
+      const infoIcon = tooltip
+        ? '<span class="info-icon" data-tooltip="' + tooltip + '">i</span>'
+        : "";
+
+      return (
+        '<div class="analysis-card">' +
+          '<div class="card-title-row">' +
+            '<h3>' + title + '</h3>' +
+            infoIcon +
+          '</div>' +
+          '<div class="analysis-value">' + value + '</div>' +
+          '<div class="analysis-sub">' + sub + '</div>' +
+        '</div>'
+      );
+    }
+
+     /* =========================
+       ICD SORTING HELPER
+       ========================= */
+    function icdSortKey(code) {
+      const clean = String(code || "").trim().toUpperCase();
+      const match = clean.match(/^([A-Z0-9]+?)(\d+)(?:\.(.*))?$/);
+
+      if (!match) {
+        return {
+          prefix: clean,
+          main: Number.MAX_SAFE_INTEGER,
+          sub: clean
+        };
+      }
+
       return {
-        prefix: clean,
-        main: Number.MAX_SAFE_INTEGER,
-        sub: clean
+        prefix: match[1],
+        main: parseInt(match[2], 10),
+        sub: match[3] || ""
       };
     }
 
-    return {
-      prefix: match[1],
-      main: parseInt(match[2], 10),
-      sub: match[3] || ""
-    };
-  }
+     /* =========================
+       COMPARE ICD CODES
+       ========================= */
+    function compareICD(a, b) {
+      const ka = icdSortKey(a.code);
+      const kb = icdSortKey(b.code);
 
-  function compareICD(a, b) {
-    const ka = icdSortKey(a.code);
-    const kb = icdSortKey(b.code);
+      if (ka.prefix !== kb.prefix) return ka.prefix.localeCompare(kb.prefix);
+      if (ka.main !== kb.main) return ka.main - kb.main;
 
-    if (ka.prefix !== kb.prefix) return ka.prefix.localeCompare(kb.prefix);
-    if (ka.main !== kb.main) return ka.main - kb.main;
-
-    return ka.sub.localeCompare(kb.sub, undefined, {
-      numeric: true,
-      sensitivity: "base"
-    });
-  }
-
-  function compareAcceptance(a, b) {
-  if (b.acceptance_rate !== a.acceptance_rate) return b.acceptance_rate - a.acceptance_rate;
-  if (b.total !== a.total) return b.total - a.total;
-  return compareICD(a, b);
-}
-
-  function renderCodeTable() {
-    const tbody = document.getElementById("codeTableBody");
-    const sortMode = document.getElementById("sortMode")?.value || "acceptance";
-    const searchTerm = (document.getElementById("codeSearch")?.value || "").trim().toUpperCase();
-
-    let codes = [...allCodes];
-
-    if (searchTerm) {
-      codes = codes.filter(item =>
-        String(item.code || "").toUpperCase().startsWith(searchTerm)
-      );
+      return ka.sub.localeCompare(kb.sub, undefined, {
+        numeric: true,
+        sensitivity: "base"
+      });
     }
 
-    if (sortMode === "icd") {
-      codes.sort(compareICD);
-    } else {
-      codes.sort(compareAcceptance);
-    }
+     /* =========================
+       COMPARE ACCEPTANCE RATE
+       ========================= */
+    function compareAcceptance(a, b) {
+    if (b.acceptance_rate !== a.acceptance_rate) return b.acceptance_rate - a.acceptance_rate;
+    if (b.total !== a.total) return b.total - a.total;
+    return compareICD(a, b);
+  }
 
-    if (!codes.length) {
-      tbody.innerHTML = `
+      /* =========================
+       RENDER ICD CODE TABLE
+       ========================= */
+    function renderCodeTable() {
+      const tbody = document.getElementById("codeTableBody");
+      const sortMode = document.getElementById("sortMode")?.value || "acceptance";
+      const searchTerm = (document.getElementById("codeSearch")?.value || "").trim().toUpperCase();
+
+      let codes = [...allCodes];
+
+       // Filter ICD codes based on the search input.
+      if (searchTerm) {
+        codes = codes.filter(item =>
+          String(item.code || "").toUpperCase().startsWith(searchTerm)
+        );
+      }
+
+        // Sort ICD codes based on selected sorting mode.
+      if (sortMode === "icd") {
+        codes.sort(compareICD);
+      } else {
+        codes.sort(compareAcceptance);
+      }
+
+       // Show empty state if no matching ICD codes exist.
+      if (!codes.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-state">No matching ICD codes found.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Render table rows dynamically.
+      tbody.innerHTML = codes.map(item => `
         <tr>
-          <td colspan="6" class="empty-state">No matching ICD codes found.</td>
+          <td><strong>${item.code}</strong></td>
+          <td>${item.total}</td>
+          <td>${item.accepted}</td>
+          <td>${item.acceptance_rate}%</td>
+          <td>${item.avg_confidence}%</td>
+        
         </tr>
-      `;
-      return;
-    }
-
-    tbody.innerHTML = codes.map(item => `
-      <tr>
-        <td><strong>${item.code}</strong></td>
-        <td>${item.total}</td>
-        <td>${item.accepted}</td>
-        <td>${item.acceptance_rate}%</td>
-        <td>${item.avg_confidence}%</td>
-       
-      </tr>
-    `).join("");
-  }
-
-  async function loadAnalysis() {
-    const res = await fetch("/api/icd_analysis_summary");
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data.status !== "success") {
-      document.getElementById("summaryCards").innerHTML = `
-        <div class="section-box empty-state">Failed to load analysis data.</div>
-      `;
-      return;
-    }
-
-    const summary = data.summary || {};
-    const ranges = data.confidence_ranges || [];
-    allCodes = data.per_code || [];
-    const adjustedInsights = data.adjusted_icd_insights || {};
-
-    document.getElementById("summaryCards").innerHTML = `
-      ${createCard("Total Predictions", summary.total_predictions ?? 0, "All stored model predictions")}
-      ${createCard("Accepted Predictions", summary.total_accepted ?? 0, "Predictions checked by users")}
-      ${createCard("Overall Acceptance", `${summary.overall_acceptance_rate ?? 0}%`, "Accepted ÷ total predictions")}
-      ${createCard("Average Confidence", `${summary.average_confidence ?? 0}%`, "Average model confidence")}
-      ${createCard("Average Chosen Threshold", `${summary.average_threshold ?? 0}%`, "Saved threshold from users")}
-    `;
-
-    document.getElementById("adjustedInsightsCards").innerHTML =
-      createCard(
-        "Model Miss Rate",
-        (adjustedInsights.model_miss_rate ?? 0) + "%",
-        "Adjusted codes not predicted by the model",
-        "The percentage of final adjusted ICD codes that were manually added because they were not predicted by the model."
-      ) +
-      createCard(
-        "Adjusted-only Codes Count",
-        adjustedInsights.adjusted_only_codes_count ?? 0,
-        "Codes manually added because the model missed them",
-        "The number of ICD codes that users added manually and were not included in the model predictions."
-      ) +
-      createCard(
-        "Total ICD Codes Saved",
-        adjustedInsights.total_saved_icd_codes ?? 0,
-        "Predicted codes plus manually added adjusted codes",
-        "The total number of ICD codes saved, including accepted predicted codes and manually added adjusted codes."
-      );
-    renderAdjustedIcdChart(adjustedInsights);
-
-    const rangesContainer = document.getElementById("confidenceRanges");
-    if (!ranges.length || Number(summary.total_predictions || 0) === 0) {
-      rangesContainer.innerHTML = `
-        <div class="empty-state">
-          No analysis data yet. Save a few new notes first so the system can store full prediction feedback.
-        </div>
-      `;
-    } else {
-      rangesContainer.innerHTML = ranges.map(item => `
-        <div class="range-row">
-          <div class="range-head">
-            <div class="range-label">${item.label}</div>
-            <div class="range-stats">
-              ${item.accepted} accepted / ${item.total} predictions · Avg confidence ${item.avg_confidence}%
-            </div>
-          </div>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${item.acceptance_rate}%;"></div>
-          </div>
-          <div class="analysis-sub" style="margin-top:8px;">
-            Acceptance rate: <strong>${item.acceptance_rate}%</strong>
-          </div>
-        </div>
       `).join("");
     }
 
-    renderCodeTable();
-  }
+     /* =========================
+       LOAD ANALYSIS DATA
+       ========================= */
+    async function loadAnalysis() {
+       // Fetch ICD analysis summary from backend.
+      const res = await fetch("/api/icd_analysis_summary");
+      const data = await res.json().catch(() => ({}));
 
-  function setActiveButton(groupSelector, valueKey, value) {
-    document.querySelectorAll(groupSelector).forEach(btn => {
-      btn.classList.toggle("active", btn.dataset[valueKey] === value);
-    });
-  }
+      // Handle failed response.
+      if (!res.ok || data.status !== "success") {
+        document.getElementById("summaryCards").innerHTML = `
+          <div class="section-box empty-state">Failed to load analysis data.</div>
+        `;
+        return;
+      }
 
-  function destroyStatsChart() {
-    if (patientStatsChart) {
-      patientStatsChart.destroy();
-      patientStatsChart = null;
+      const summary = data.summary || {};
+      const ranges = data.confidence_ranges || [];
+      // Store ICD code statistics globally for filtering and sorting.
+      allCodes = data.per_code || [];
+      const adjustedInsights = data.adjusted_icd_insights || {};
+
+       // Render top summary cards.
+      document.getElementById("summaryCards").innerHTML = `
+        ${createCard("Total Predictions", summary.total_predictions ?? 0, "All stored model predictions")}
+        ${createCard("Accepted Predictions", summary.total_accepted ?? 0, "Predictions checked by users")}
+        ${createCard("Overall Acceptance", `${summary.overall_acceptance_rate ?? 0}%`, "Accepted ÷ total predictions")}
+        ${createCard("Average Confidence", `${summary.average_confidence ?? 0}%`, "Average model confidence")}
+        ${createCard("Average Chosen Threshold", `${summary.average_threshold ?? 0}%`, "Saved threshold from users")}
+      `;
+
+       // Render adjusted ICD insights cards.
+      document.getElementById("adjustedInsightsCards").innerHTML =
+        createCard(
+          "Model Miss Rate",
+          (adjustedInsights.model_miss_rate ?? 0) + "%",
+          "Adjusted codes not predicted by the model",
+          "The percentage of final adjusted ICD codes that were manually added because they were not predicted by the model."
+        ) +
+        createCard(
+          "Adjusted-only Codes Count",
+          adjustedInsights.adjusted_only_codes_count ?? 0,
+          "Codes manually added because the model missed them",
+          "The number of ICD codes that users added manually and were not included in the model predictions."
+        ) +
+        createCard(
+          "Total ICD Codes Saved",
+          adjustedInsights.total_saved_icd_codes ?? 0,
+          "Predicted codes plus manually added adjusted codes",
+          "The total number of ICD codes saved, including accepted predicted codes and manually added adjusted codes."
+        );
+      // Render adjusted ICD comparison chart.
+      renderAdjustedIcdChart(adjustedInsights);
+
+      // Show empty state if there are no confidence range results.
+      const rangesContainer = document.getElementById("confidenceRanges");
+      if (!ranges.length || Number(summary.total_predictions || 0) === 0) {
+        rangesContainer.innerHTML = `
+          <div class="empty-state">
+            No analysis data yet. Save a few new notes first so the system can store full prediction feedback.
+          </div>
+        `;
+      } else {
+         // Render acceptance rate ranges dynamically.
+        rangesContainer.innerHTML = ranges.map(item => `
+          <div class="range-row">
+            <div class="range-head">
+              <div class="range-label">${item.label}</div>
+              <div class="range-stats">
+                ${item.accepted} accepted / ${item.total} predictions · Avg confidence ${item.avg_confidence}%
+              </div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${item.acceptance_rate}%;"></div>
+            </div>
+            <div class="analysis-sub" style="margin-top:8px;">
+              Acceptance rate: <strong>${item.acceptance_rate}%</strong>
+            </div>
+          </div>
+        `).join("");
+      }
+
+       // Render ICD table after loading data.
+      renderCodeTable();
     }
-  }
 
-  function renderStatsSummary(data) {
-    const summaryBox = document.getElementById("statsSummary");
-    summaryBox.innerHTML = `
-      ${createCard("ICD Code", data.code || "-", "Searched code")}
-      ${createCard("Statistic Type", (data.stat_type || "-").replace("_", " "), "Selected analysis")}
-      ${createCard("Total Patients", data.total_patients ?? 0, "Unique matched patients")}
-      ${createCard("Average Age", data.average_age ?? "N/A", "Across matched patients")}
-    `;
-  }
+     /* =========================
+       SET ACTIVE BUTTON
+       ========================= */
+    function setActiveButton(groupSelector, valueKey, value) {
+      document.querySelectorAll(groupSelector).forEach(btn => {
+        btn.classList.toggle("active", btn.dataset[valueKey] === value);
+      });
+    }
 
-  function renderPatientStatsChart(data) {
-    const emptyState = document.getElementById("statsEmptyState");
-    const canvas = document.getElementById("patientStatsChart");
+     /* =========================
+       DESTROY PATIENT STATS CHART
+       ========================= */
+    function destroyStatsChart() {
+      if (patientStatsChart) {
+        patientStatsChart.destroy();
+        patientStatsChart = null;
+      }
+    }
 
-    destroyStatsChart();
+     /* =========================
+       RENDER PATIENT STATS SUMMARY
+       ========================= */
+    function renderStatsSummary(data) {
+      const summaryBox = document.getElementById("statsSummary");
+      summaryBox.innerHTML = `
+        ${createCard("ICD Code", data.code || "-", "Searched code")}
+        ${createCard("Statistic Type", (data.stat_type || "-").replace("_", " "), "Selected analysis")}
+        ${createCard("Total Patients", data.total_patients ?? 0, "Unique matched patients")}
+        ${createCard("Average Age", data.average_age ?? "N/A", "Across matched patients")}
+      `;
+    }
 
-    if (!data.labels || !data.labels.length) {
-      emptyState.style.display = "block";
-      emptyState.textContent = "No matching patient statistics found for this ICD code.";
+     /* =========================
+       RENDER PATIENT STATS CHART
+       ========================= */
+    function renderPatientStatsChart(data) {
+      const emptyState = document.getElementById("statsEmptyState");
+      const canvas = document.getElementById("patientStatsChart");
+
+      destroyStatsChart();
+
+      if (!data.labels || !data.labels.length) {
+        emptyState.style.display = "block";
+        emptyState.textContent = "No matching patient statistics found for this ICD code.";
+        document.getElementById("statsSummary").innerHTML = "";
+        return;
+      }
+
+      emptyState.style.display = "none";
+      renderStatsSummary(data);
+
+      const chartColors = [
+    "#7b4bb7",
+    "#b08df7",
+    "#8ec5fc",
+    "#f9a8d4",
+    "#86efac",
+    "#fcd34d",
+    "#fca5a5",
+    "#93c5fd",
+    "#c4b5fd",
+    "#fdba74"
+  ];
+
+  patientStatsChart = new Chart(canvas, {
+    type: selectedGraphType,
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: `${data.code} - ${data.stat_type.replace("_", " ")}`,
+        data: data.values,
+        backgroundColor: data.labels.map((_, index) => chartColors[index % chartColors.length] + "CC"),
+        borderColor: data.labels.map((_, index) => chartColors[index % chartColors.length]),
+        borderWidth: 2 ,
+        borderRadius: 0,
+      }]
+    },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: "top"
+            },
+            title: {
+              display: true,
+              text: `Patient Statistics for ${data.code}`
+            }
+          },
+          scales: selectedGraphType === "bar" ? {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          } : {}
+        }
+      });
+    }
+
+     /* =========================
+       GENERATE PATIENT STATISTICS
+       ========================= */
+    async function generatePatientStats() {
+      const code = (document.getElementById("statsCodeInput")?.value || "").trim().toUpperCase();
+      const emptyState = document.getElementById("statsEmptyState");
+
+
+      // Reset previous chart and summary.
+      destroyStatsChart();
       document.getElementById("statsSummary").innerHTML = "";
-      return;
+      emptyState.style.display = "block";
+      emptyState.textContent = "Loading patient statistics...";
+
+
+      // Validate ICD code input.
+      if (!code) {
+        destroyStatsChart();
+        document.getElementById("statsSummary").innerHTML = "";
+        emptyState.style.display = "block";
+        emptyState.textContent = "Please enter an ICD code first.";
+        return;
+      }
+
+      // Prepare backend API URL.
+      const url = `/api/icd_patient_statistics?code=${encodeURIComponent(code)}&stat_type=${encodeURIComponent(selectedStatType)}`;
+      // Fetch patient statistics from backend.
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+
+      // Handle failed response.
+      if (!res.ok || data.status !== "success") {
+        destroyStatsChart();
+        document.getElementById("statsSummary").innerHTML = "";
+        emptyState.style.display = "block";
+        emptyState.textContent = data.message || "Failed to load patient statistics.";
+        return;
+      }
+
+      // Render patient statistics chart.
+      renderPatientStatsChart(data);
     }
 
-    emptyState.style.display = "none";
-    renderStatsSummary(data);
+     /* =========================
+       PAGE INITIALIZATION
+       ========================= */
+    document.addEventListener("DOMContentLoaded", () => {
+       // Load all analysis data when the page opens.
+      loadAnalysis();
 
-    const chartColors = [
-  "#7b4bb7",
-  "#b08df7",
-  "#8ec5fc",
-  "#f9a8d4",
-  "#86efac",
-  "#fcd34d",
-  "#fca5a5",
-  "#93c5fd",
-  "#c4b5fd",
-  "#fdba74"
-];
+       // Re-render ICD table when sorting option changes.
+      document.getElementById("sortMode")?.addEventListener("change", renderCodeTable);
+      // Re-render ICD table when search input changes. 
+      document.getElementById("codeSearch")?.addEventListener("input", renderCodeTable);
 
-patientStatsChart = new Chart(canvas, {
-  type: selectedGraphType,
-  data: {
-    labels: data.labels,
-    datasets: [{
-      label: `${data.code} - ${data.stat_type.replace("_", " ")}`,
-      data: data.values,
-      backgroundColor: data.labels.map((_, index) => chartColors[index % chartColors.length] + "CC"),
-      borderColor: data.labels.map((_, index) => chartColors[index % chartColors.length]),
-      borderWidth: 2 ,
-      borderRadius: 0,
-    }]
-  },
+      // Handle statistic type button selection.
+      document.querySelectorAll("#statTypeButtons .toggle-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedStatType = btn.dataset.statType;
+          setActiveButton("#statTypeButtons .toggle-btn", "statType", selectedStatType);
+        });
+      });
+
+       // Handle chart type button selection.
+      document.querySelectorAll("#graphTypeButtons .toggle-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedGraphType = btn.dataset.graphType;
+          setActiveButton("#graphTypeButtons .toggle-btn", "graphType", selectedGraphType);
+        });
+      });
+
+      document.getElementById("generateStatsBtn")?.addEventListener("click", generatePatientStats);
+    });
+
+
+
+    let adjustedIcdChart = null;
+
+   /* =========================
+       RENDER ADJUSTED ICD CHART
+       ========================= */  
+  function renderAdjustedIcdChart(adjustedInsights) {
+    const canvas = document.getElementById("adjustedIcdChart");
+    if (!canvas) return;
+
+    // Remove existing adjusted ICD chart before creating a new one.
+    if (adjustedIcdChart) {
+      adjustedIcdChart.destroy();
+      adjustedIcdChart = null;
+    }
+
+     // Create bar chart comparing predicted and manually added ICD codes.
+    adjustedIcdChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: ["Predicted by Model", "Added Manually"],
+        datasets: [{
+          label: "ICD Codes Count",
+          data: [
+            adjustedInsights.predicted_saved_codes ?? 0,
+            adjustedInsights.added_adjusted_codes ?? 0
+          ],
+          backgroundColor: ["#7b4bb7", "#b08df7"],
+          borderColor: ["#7b4bb7", "#b08df7"],
+          borderWidth: 2,
+          borderRadius: 10
+        }]
+      },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            display: true,
-            position: "top"
+            display: false
           },
           title: {
             display: true,
-            text: `Patient Statistics for ${data.code}`
+            text: `Total ICD Codes Saved: ${adjustedInsights.total_saved_icd_codes ?? 0}`
           }
         },
-        scales: selectedGraphType === "bar" ? {
+        scales: {
           y: {
             beginAtZero: true,
             ticks: {
               precision: 0
             }
           }
-        } : {}
-      }
-    });
-  }
-
-  async function generatePatientStats() {
-    const code = (document.getElementById("statsCodeInput")?.value || "").trim().toUpperCase();
-    const emptyState = document.getElementById("statsEmptyState");
-
-
-    destroyStatsChart();
-    document.getElementById("statsSummary").innerHTML = "";
-    emptyState.style.display = "block";
-    emptyState.textContent = "Loading patient statistics...";
-
-
-    if (!code) {
-      destroyStatsChart();
-      document.getElementById("statsSummary").innerHTML = "";
-      emptyState.style.display = "block";
-      emptyState.textContent = "Please enter an ICD code first.";
-      return;
-    }
-
-    const url = `/api/icd_patient_statistics?code=${encodeURIComponent(code)}&stat_type=${encodeURIComponent(selectedStatType)}`;
-    const res = await fetch(url);
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data.status !== "success") {
-      destroyStatsChart();
-      document.getElementById("statsSummary").innerHTML = "";
-      emptyState.style.display = "block";
-      emptyState.textContent = data.message || "Failed to load patient statistics.";
-      return;
-    }
-
-    renderPatientStatsChart(data);
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    loadAnalysis();
-
-    document.getElementById("sortMode")?.addEventListener("change", renderCodeTable);
-    document.getElementById("codeSearch")?.addEventListener("input", renderCodeTable);
-
-    document.querySelectorAll("#statTypeButtons .toggle-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        selectedStatType = btn.dataset.statType;
-        setActiveButton("#statTypeButtons .toggle-btn", "statType", selectedStatType);
-      });
-    });
-
-    document.querySelectorAll("#graphTypeButtons .toggle-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        selectedGraphType = btn.dataset.graphType;
-        setActiveButton("#graphTypeButtons .toggle-btn", "graphType", selectedGraphType);
-      });
-    });
-
-    document.getElementById("generateStatsBtn")?.addEventListener("click", generatePatientStats);
-  });
-
-
-
-  let adjustedIcdChart = null;
-
-function renderAdjustedIcdChart(adjustedInsights) {
-  const canvas = document.getElementById("adjustedIcdChart");
-  if (!canvas) return;
-
-  if (adjustedIcdChart) {
-    adjustedIcdChart.destroy();
-    adjustedIcdChart = null;
-  }
-
-  adjustedIcdChart = new Chart(canvas, {
-    type: "bar",
-    data: {
-      labels: ["Predicted by Model", "Added Manually"],
-      datasets: [{
-        label: "ICD Codes Count",
-        data: [
-          adjustedInsights.predicted_saved_codes ?? 0,
-          adjustedInsights.added_adjusted_codes ?? 0
-        ],
-        backgroundColor: ["#7b4bb7", "#b08df7"],
-        borderColor: ["#7b4bb7", "#b08df7"],
-        borderWidth: 2,
-        borderRadius: 10
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        title: {
-          display: true,
-          text: `Total ICD Codes Saved: ${adjustedInsights.total_saved_icd_codes ?? 0}`
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0
-          }
         }
       }
-    }
-  });
-}
-</script>
+    });
+  }
+  </script>
 
 </body>
 </html>    
