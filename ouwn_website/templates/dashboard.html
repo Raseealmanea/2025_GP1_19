@@ -9,709 +9,640 @@
     <script src="/static/theme.js" defer></script>
 </head>
 <body class="page-dashboard">
-  <!-- Header -->
-  {% include "header.html" %}
-  <div id="banner" class="banner"></div>
+    {% include "header.html" %}
+    <div id="banner" class="banner"></div>
 
-  <!-- Global Banner -->
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-          <div class="banner {{ category }} show">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+            <div class="banner {{ category }} show">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-  <!-- Breadcrumb -->
-  <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
-      <div class="ouwn-crumbs">
-        <a class="crumb" href="{{ url_for('dashboard') }}">
-          <i class="fa-solid fa-house"></i>
-          <span>Dashboard</span>
-        </a>
-      </div>
-  </nav>
+    <!-- Breadcrumb -->
+    <nav class="ouwn-breadcrumb-bar" role="navigation" aria-label="Breadcrumb">
+        <div class="ouwn-crumbs">
+            <a class="crumb" href="{{ url_for('dashboard') }}">
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </a>
+        </div>
+    </nav>
 
-  <!-- Toast Message -->
-  {% if msg_text %}
-      <div id="toast" class="toast show">
+    <!-- Toast Message -->
+    {% if msg_text %}
+    <div id="toast" class="toast show">
         <i class="fa-solid fa-circle-check"></i>
         <span>{{ msg_text }}</span>
-      </div>
-      
-    <!-- Auto-hide Toast -->
+    </div>
     <script>
-      setTimeout(() => {
-        const toast = document.getElementById('toast');
-        if (toast) toast.classList.remove('show');
+        setTimeout(() => {
+            const toast = document.getElementById('toast');
+            if (toast) toast.classList.remove('show');
         }, 3500);
         window.history.replaceState({}, document.title, window.location.pathname);
     </script>
-  {% endif %}
- 
-  <!-- Auto-hide Flash Banner -->
-  <script>
-    setTimeout(() => {
-      const banner = document.querySelector('.banner.show');
-        if (banner) banner.classList.remove('show');
-      }, 4000);
-  </script>
+    {% endif %}
+    <script>
+        setTimeout(() => {
+            const banner = document.querySelector('.banner.show');
+            if (banner) banner.classList.remove('show');
+        }, 4000);
+    </script>
 
-  <!-- Add Patient Button -->
-  <div class="list-actions">
+<div class="list-actions">
     <div class="header-buttons">
-      <button class="btn-primary add-patient-btn" onclick="location.href='{{ url_for('add_patient') }}'">
-        <i class="fa-solid fa-user-plus"></i>
-        <span>Add Patient</span>
-      </button>
+        <button class="btn-primary add-patient-btn" onclick="location.href='{{ url_for('add_patient') }}'">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Add Patient</span>
+        </button>
     </div>
-  </div>
 
     <!-- Live Search -->
-  <div class="view-toggle">
+ <div class="view-toggle">
     <button id="gridView" class="btn-primary" title="Grid View">
-      <i class="fa-solid fa-table-cells"></i>
+        <i class="fa-solid fa-table-cells"></i>
     </button>
 
-     <!-- List View -->
     <button id="listView" class="btn-primary" title="List View">
         <i class="fa-solid fa-list"></i>
     </button>
-  </div>
-
-   <!-- Search Bar -->
-  <div class="search-bar">
+</div>
+<div class="search-bar">
     <label>Search:</label>
+
     <input type="text" id="unifiedSearchInput" placeholder="Enter search value">
     <div class="custom-select-wrapper search-select">
-      <select id="searchType">
-        <option value="name">Name</option>
-        <option value="id">ID</option>
-        <option value="yob">Year of Birth</option>
-        <option value="icd">ICD Code</option>
-      </select>
+    <select id="searchType">
+      <option value="name">Name</option>
+      <option value="id">ID</option>
+      <option value="yob">Year of Birth</option>
+      <option value="icd">ICD Code</option>
+    </select>
+    </div>
+</div>
+
+<!-- Sort Controls -->
+<div class="sort-bar">
+  <label>Sort by:</label>
+  <div class="custom-select-wrapper">
+    <select id="sortBy">
+      <option value="">Select</option>
+      <option value="name_asc">First Name (A → Z)</option>
+      <option value="name_desc">First Name (Z → A)</option>
+      <option value="age_young">Age (Younger first)</option>
+      <option value="age_old">Age (Older first)</option>
+      <option value="icd_date">ICD Date (Earliest first)</option>
+    </select>
+  </div>
+</div>
+</div>
+
+    <!-- patient list -->
+    <main class="main-content">
+        <div class="container">
+            <div class="title-bar">
+                <div class="title-bar-line"></div>
+                <h2 class="section-title">Patient List</h2>
+                <div class="title-bar-line-fade"></div>
+            </div>
+
+            <div class="patient-grid">
+                <div class="no-results"><i class="fa-solid fa-spinner fa-spin"></i> Loading patients...</div>
+            </div>
+            <div id="horizontalView" style="display: none; overflow-x: auto;">
+              <table class="patient-table">
+                <thead>
+                  <tr>
+                    <th>Full Name</th>
+                    <th>Patient ID</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+        </div>
+    </main>
+
+
+    <!-- Custom Confirm Modal -->
+<div id="confirmModal" class="confirm-modal">
+  <div class="confirm-box">
+    <h3 class="confirm-title">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      Confirm deletion
+    </h3>
+
+    <p id="confirmMessage" class="confirm-message"></p>
+
+    <div class="confirm-actions">
+      <button type="button" id="confirmCancel" class="btn-secondary">Cancel</button>
+      <button type="button" id="confirmOk" class="btn-danger">Delete</button>
     </div>
   </div>
+</div>
 
-  <!-- Sort Controls -->
-  <div class="sort-bar">
-    <label>Sort by:</label>
-    <div class="custom-select-wrapper">
-      <select id="sortBy">
-        <option value="">Select</option>
-        <option value="name_asc">First Name (A → Z)</option>
-        <option value="name_desc">First Name (Z → A)</option>
-        <option value="age_young">Age (Younger first)</option>
-        <option value="age_old">Age (Older first)</option>
-        <option value="icd_date">ICD Date (Earliest first)</option>
-      </select>
-    </div>
-  </div>
+    <footer>
+        <p>&copy; 2025 OuwN. All Rights Reserved.</p>
+    </footer>
 
-  <!-- patient list -->
-  <main class="main-content">
-    <div class="container">
-      <div class="title-bar">
-        <div class="title-bar-line"></div>
-          <h2 class="section-title">Patient List</h2>
-          <div class="title-bar-line-fade"></div>
-      </div>
+<script>
+/* ========= Banner ========= */
+function showBanner(message, type = "success") {
+  const banner = document.getElementById("banner");
+  if (!banner) return;
 
-      <!-- Patient Cards -->
-      <div class="patient-grid">
-        <div class="no-results"><i class="fa-solid fa-spinner fa-spin"></i> Loading patients...</div>
-      </div>
-    </div>
-  </main>
+  const icon =
+    type === "success"
+      ? '<i class="fa-solid fa-circle-check"></i>'
+      : '<i class="fa-solid fa-circle-exclamation"></i>';
 
-  <!--  Horizontal Table View -->
-  <div id="horizontalView" style="display: none; overflow-x: auto;">
-    <table class="patient-table">
-      <thead>
-        <tr>
-          <th>Full Name</th>
-          <th>Patient ID</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  banner.innerHTML = `${icon} <span>${message}</span>`;
+  banner.className = `banner show ${type}`;
 
-  <!-- Delete Confirmation Modal -->
-  <div id="confirmModal" class="confirm-modal">
-    <div class="confirm-box">
-      <h3 class="confirm-title">
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        Confirm deletion
-      </h3>
+  setTimeout(() => {
+    banner.classList.remove("show");
+  }, 3500);
+}
 
-      <!-- Modal Message -->
-      <p id="confirmMessage" class="confirm-message"></p>
+/* ========= Custom Confirm ========= */
+function customConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirmModal");
+    const msg = document.getElementById("confirmMessage");
+    const okBtn = document.getElementById("confirmOk");
+    const cancelBtn = document.getElementById("confirmCancel");
 
-      <!-- Modal Buttons -->
-      <div class="confirm-actions">
-        <button type="button" id="confirmCancel" class="btn-secondary">Cancel</button>
-        <button type="button" id="confirmOk" class="btn-danger">Delete</button>
-      </div>
-    </div>
-  </div>
+    msg.textContent = message;
+    modal.classList.add("show");
 
-  <footer>
-    <p>&copy; 2025 OuwN. All Rights Reserved.</p>
-  </footer>
+    const cleanup = () => {
+      modal.classList.remove("show");
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      modal.onclick = null;
+      document.onkeydown = null;
+    };
 
-  <script>
-  /* ========= Banner ========= */
-  function showBanner(message, type = "success") {
-    const banner = document.getElementById("banner");
-    if (!banner) return;
+    okBtn.onclick = () => { cleanup(); resolve(true); };
+    cancelBtn.onclick = () => { cleanup(); resolve(false); };
 
-    // Select Banner Icon
-    const icon =
-      type === "success"
-        ? '<i class="fa-solid fa-circle-check"></i>'
-        : '<i class="fa-solid fa-circle-exclamation"></i>';
+    modal.onclick = (e) => {
+      if (e.target === modal) { cleanup(); resolve(false); }
+    };
 
-    // Update Banner Content
-    banner.innerHTML = `${icon} <span>${message}</span>`;
-    banner.className = `banner show ${type}`;
+    document.onkeydown = (e) => {
+      if (e.key === "Escape") { cleanup(); resolve(false); }
+    };
+  });
+}
 
-    // Auto-hide Banner
-    setTimeout(() => {
-      banner.classList.remove("show");
-    }, 3500);
+/* ========= Dashboard State ========= */
+const unifiedSearchInput = document.getElementById("unifiedSearchInput");
+const searchType = document.getElementById("searchType");
+const sortBy = document.getElementById("sortBy");
+const patientGrid = document.querySelector(".patient-grid");
+
+let initialPatientsData = {{ patients|tojson }};
+let searchTimeout = null;
+let activeAbortController = null;
+let lastRequestSeq = 0;
+let initialPatientsLoaded = false;
+let initialPatientsLoadPromise = null;
+
+/* ========= Delete Patient ========= */
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".delete-btn");
+  if (!btn) return;
+
+  const pid = (btn.dataset.id || "").trim();
+  if (!pid) {
+    showBanner("Missing patient ID.", "error");
+    return;
   }
 
-  // Custom Delete Confirmation Modal
-  function customConfirm(message) {
-    return new Promise((resolve) => {
-      const modal = document.getElementById("confirmModal");
-      const msg = document.getElementById("confirmMessage");
-      const okBtn = document.getElementById("confirmOk");
-      const cancelBtn = document.getElementById("confirmCancel");
+  const ok = await customConfirm("Delete this patient and all medical notes?");
+  if (!ok) return;
 
-      // Set Confirmation Message
-      msg.textContent = message;
-      modal.classList.add("show");
+  btn.disabled = true;
 
-      // Cleanup Modal
-      const cleanup = () => {
-        modal.classList.remove("show");
-        okBtn.onclick = null;
-        cancelBtn.onclick = null;
-        modal.onclick = null;
-        document.onkeydown = null;
-      };
-
-      // Confirm Delete
-      okBtn.onclick = () => { cleanup(); resolve(true); };
-      // Cancel Delete
-      cancelBtn.onclick = () => { cleanup(); resolve(false); };
-      // Close Modal On Background Click
-      modal.onclick = (e) => {
-        if (e.target === modal) { cleanup(); resolve(false); }
-      };
-
-      document.onkeydown = (e) => {
-        if (e.key === "Escape") { cleanup(); resolve(false); }
-      };
+  try {
+    const res = await fetch(`/delete_patient/${encodeURIComponent(pid)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
     });
-  }
 
-  /* ========= Dashboard State ========= */
-  const unifiedSearchInput = document.getElementById("unifiedSearchInput");
-  const searchType = document.getElementById("searchType");
-  const sortBy = document.getElementById("sortBy");
-  const patientGrid = document.querySelector(".patient-grid");
+    const data = await res.json().catch(() => ({}));
 
-  // Initial Patient Data
-  let initialPatientsData = {{ patients|tojson }};
-  let searchTimeout = null;
-  let activeAbortController = null;
-  let lastRequestSeq = 0;
-  let initialPatientsLoaded = false;
-  let initialPatientsLoadPromise = null;
-
-  /* ========= Delete Patient ========= */
-  document.addEventListener("click", async (e) => {
-    const btn = e.target.closest(".delete-btn");
-    if (!btn) return;
-
-    const pid = (btn.dataset.id || "").trim();
-    if (!pid) {
-      showBanner("Missing patient ID.", "error");
+    if (!res.ok) {
+      showBanner(data.error || data.message || "Delete failed.", "error");
+      btn.disabled = false;
       return;
     }
 
-    // Confirm Delete
-    const ok = await customConfirm("Delete this patient and all medical notes?");
-    if (!ok) return;
+    const card = document.getElementById(`patient-${pid}`);
+    if (card) card.remove();
 
-    btn.disabled = true;
+    const row = document.getElementById(`patient-row-${pid}`);
+    if (row) row.remove();
 
-    try {
-      // Send Delete Request
-      const res = await fetch(`/delete_patient/${encodeURIComponent(pid)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
+    initialPatientsData = initialPatientsData.filter(p => p.ID !== pid);
 
-      const data = await res.json().catch(() => ({}));
+    showBanner("Patient deleted successfully.", "success");
 
-      if (!res.ok) {
-        showBanner(data.error || data.message || "Delete failed.", "error");
-        btn.disabled = false;
+  } catch (err) {
+    showBanner("Network error. Please try again.", "error");
+    btn.disabled = false;
+  }
+});
+
+function renderPatients(patients) {
+    if (!patientGrid) return;
+
+    patientGrid.innerHTML = "";
+
+    if (!patients || !patients.length) {
+        patientGrid.innerHTML = `<div class="no-results"><i class="fa-solid fa-magnifying-glass"></i>No matching patients found</div>`;
         return;
-      }
-
-      const card = document.getElementById(`patient-${pid}`);
-      if (card) card.remove();
-
-      const row = document.getElementById(`patient-row-${pid}`);
-      if (row) row.remove();
-
-      initialPatientsData = initialPatientsData.filter(p => p.ID !== pid);
-
-      showBanner("Patient deleted successfully.", "success");
-
-    } catch (err) {
-      showBanner("Network error. Please try again.", "error");
-      btn.disabled = false;
     }
-  });
 
-  // Render Patient Cards
-  function renderPatients(patients) {
-      if (!patientGrid) return;
+    patients.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "patient-card";
+        card.id = `patient-${p.ID}`;
+        card.dataset.name = p.FullName;
+        card.dataset.id = p.ID;
 
-      patientGrid.innerHTML = "";
-
-      // No Results
-      if (!patients || !patients.length) {
-          patientGrid.innerHTML = `<div class="no-results"><i class="fa-solid fa-magnifying-glass"></i>No matching patients found</div>`;
-          return;
-      }
-
-      // Render Patient Cards
-      patients.forEach(p => {
-          const card = document.createElement("div");
-          card.className = "patient-card";
-          card.id = `patient-${p.ID}`;
-          card.dataset.name = p.FullName;
-          card.dataset.id = p.ID;
-
-          card.innerHTML = `
-            <div class="card-corner"></div>
-            <div class="card-content">
-              <h3 class="patient-name">${p.FullName}</h3>
-              <div class="patient-id-row">
-                <span class="id-label">Patient ID</span>
-                <span class="patient-id">${p.ID}</span>
-              </div>
-
-              <div class="patient-actions">
-                <button class="btn-icon btn-secondary"
-                  onclick="location.href='/MedicalNotes?pid=${p.ID}'"
-                  title="Add Medical Notes" aria-label="Add Medical Notes">
-                  <i class="fa-solid fa-file-medical"></i>
-                </button>
-
-                <button class="btn-icon btn-secondary"
-                  onclick="location.href='/view_patient/${p.ID}'"
-                  title="View Patient" aria-label="View Patient">
-                  <i class="fa-solid fa-eye"></i>
-                </button>
-
-                <button type="button" class="btn-icon btn-danger delete-btn"
-                  data-id="${p.ID}"
-                  title="Delete Patient" aria-label="Delete Patient">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </div>
+        card.innerHTML = `
+          <div class="card-corner"></div>
+          <div class="card-content">
+            <h3 class="patient-name">${p.FullName}</h3>
+            <div class="patient-id-row">
+              <span class="id-label">Patient ID</span>
+              <span class="patient-id">${p.ID}</span>
             </div>
-          `;
 
-          patientGrid.appendChild(card);
-      });
-  }
+            <div class="patient-actions">
+              <button class="btn-icon btn-secondary"
+                onclick="location.href='/MedicalNotes?pid=${p.ID}'"
+                title="Add Medical Notes" aria-label="Add Medical Notes">
+                <i class="fa-solid fa-file-medical"></i>
+              </button>
 
-  // Render Patient Table View
-  function renderPatientsTable(patients) {
-      const tableBody = document.querySelector("#horizontalView tbody");
-      if (!tableBody) return;
+              <button class="btn-icon btn-secondary"
+                onclick="location.href='/view_patient/${p.ID}'"
+                title="View Patient" aria-label="View Patient">
+                <i class="fa-solid fa-eye"></i>
+              </button>
 
-      tableBody.innerHTML = "";
+              <button type="button" class="btn-icon btn-danger delete-btn"
+                data-id="${p.ID}"
+                title="Delete Patient" aria-label="Delete Patient">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
 
-      // No Results Found
-      if (!patients || !patients.length) {
-          tableBody.innerHTML = `
-          <tr>
-            <td colspan="3" style="text-align:center;">No matching patients found</td>
-          </tr>
-          `;
-          return;
-      }
+        patientGrid.appendChild(card);
+    });
+}
 
-      // Render Patient Rows
-      patients.forEach(p => {
-          const tr = document.createElement("tr");
-          tr.id = `patient-row-${p.ID}`;
-          tr.innerHTML = `
-              <td>${p.FullName}</td>
-              <td>${p.ID}</td>
-              <td>
-                <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
-                  <i class="fa-solid fa-file-medical"></i>
-                </button>
-                <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-                <button class="btn-danger delete-btn" data-id="${p.ID}">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </td>
-          `;
-          tableBody.appendChild(tr);
-      });
-  }
+function renderPatientsTable(patients) {
+    const tableBody = document.querySelector("#horizontalView tbody");
+    if (!tableBody) return;
 
-  // Filter Patients Locally
-  function filterPatientsLocal(patients, value, type) {
-      const q = (value || "").trim();
-      if (!q) return [...patients];
+    tableBody.innerHTML = "";
 
-      if (type === "name") {
-          const qLower = q.toLowerCase();
-          return patients.filter(p => {
-              const fullName = (p.FullName || "").toLowerCase().trim();
-              const nameParts = fullName.split(/\s+/).filter(Boolean);
-              return fullName.startsWith(qLower) || nameParts.some(part => part.startsWith(qLower));
-          });
-      }
-
-      // Filter By Patient ID
-      if (type === "id") {
-          const qLower = q.toLowerCase();
-          return patients.filter(p => (p.ID || "").toLowerCase().startsWith(qLower));
-      }
-
-      // Filter By Year Of Birth
-      if (type === "yob") {
-          return patients.filter(p => {
-              const dob = String(p.DOB || "");
-              if (dob) return dob.slice(0, 4).startsWith(q);
-              return String(p.YOB || "").startsWith(q);
-          });
-      }
-
-      return [...patients];
-  }
-
-  // Sort Patients Locally
-  function sortPatientsLocal(patients, sort) {
-      const items = [...patients];
-      const getDobString = (patient) => String(patient.DOB || "");
-
-       // Sort By Name Ascending
-      if (sort === "name_asc") {
-          items.sort((a, b) => (a.FullName || "").localeCompare(b.FullName || "", undefined, { sensitivity: "base" }));
-          // Sort By Name Descending
-      } else if (sort === "name_desc") {
-          items.sort((a, b) => (b.FullName || "").localeCompare(a.FullName || "", undefined, { sensitivity: "base" }));
-          // Sort By Younger Age
-      } else if (sort === "age_young") {
-          items.sort((a, b) => {
-              const dobA = getDobString(a);
-              const dobB = getDobString(b);
-              if (!dobA && !dobB) return 0;
-              if (!dobA) return 1;
-              if (!dobB) return -1;
-              return dobB.localeCompare(dobA);
-          });
-          // Sort By Older Age
-      } else if (sort === "age_old") {
-          items.sort((a, b) => {
-              const dobA = getDobString(a);
-              const dobB = getDobString(b);
-              if (!dobA && !dobB) return 0;
-              if (!dobA) return 1;
-              if (!dobB) return -1;
-              return dobA.localeCompare(dobB);
-          });
-      }
-
-      return items;
-  }
-
-  // Load Initial Patients 
-  async function loadInitialPatients() {
-      // Already Loaded
-      if (initialPatientsLoaded) return initialPatientsData;
-      if (initialPatientsLoadPromise) return initialPatientsLoadPromise;
-
-      initialPatientsLoadPromise = (async () => {
-          try {
-              const res = await fetch("/api/patients");
-              if (!res.ok) throw new Error("Failed to load patients");
-
-              const data = await res.json();
-              initialPatientsData = data;
-              initialPatientsLoaded = true;
-              renderPatients(data);
-              renderPatientsTable(data);
-              return data;
-          } catch (err) {
-              console.error(err);
-              renderPatients([]);
-              renderPatientsTable([]);
-              return [];
-          } finally {
-              initialPatientsLoadPromise = null;
-          }
-      })();
-
-      return initialPatientsLoadPromise;
-  }
-
-  // Validate Search Input
-  function validateUnifiedInput() {
-    let value = unifiedSearchInput.value;
-    // Empty Input
-    if (!value) return;
-
-    const type = searchType.value;
-
-    // Name Validation
-    if (type === "name") {
-      value = value.replace(/[^a-zA-Z]/g, "");
-    // Patient ID Validation
-    } else if (type === "id") {
-      value = value.replace(/[^0-9]/g, "");
-    // Year Of Birth Validation
-    } else if (type === "yob") {
-      value = value.replace(/[^0-9]/g, "");
-      if (value.length > 4) value = value.slice(0, 4);
-    // ICD Code Validation
-    } else if (type === "icd") {
-      value = value.replace(/[^a-zA-Z0-9.]/g, "");
-      value = value.replace(/^\./, "");
-      value = value.replace(/(\..*)\./g, "$1");
-      value = value.toUpperCase();
+    if (!patients || !patients.length) {
+        tableBody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align:center;">No matching patients found</td>
+        </tr>
+        `;
+        return;
     }
 
-    // Update Input Value
-    unifiedSearchInput.value = value;
-  }
+    patients.forEach(p => {
+        const tr = document.createElement("tr");
+        tr.id = `patient-row-${p.ID}`;
+        tr.innerHTML = `
+            <td>${p.FullName}</td>
+            <td>${p.ID}</td>
+            <td>
+              <button class="btn-secondary" onclick="location.href='/MedicalNotes?pid=${p.ID}'">
+                <i class="fa-solid fa-file-medical"></i>
+              </button>
+              <button class="btn-secondary" onclick="location.href='/view_patient/${p.ID}'">
+                  <i class="fa-solid fa-eye"></i>
+              </button>
+              <button class="btn-danger delete-btn" data-id="${p.ID}">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
 
-  // Fetch Patients
-  async function fetchPatients() {
-      clearTimeout(searchTimeout);
+function filterPatientsLocal(patients, value, type) {
+    const q = (value || "").trim();
+    if (!q) return [...patients];
 
-      const value = unifiedSearchInput.value.trim();
-      const type = searchType.value;
-      const sort = sortBy ? sortBy.value || "" : "";
-
-      const needsServerData =
-          type === "icd" ||
-          sort === "icd_date";
-
-      if (!needsServerData) {
-          if (!initialPatientsLoaded) {
-              await loadInitialPatients();
-          }
-          const filtered = filterPatientsLocal(initialPatientsData, value, type);
-          const sorted = sortPatientsLocal(filtered, sort);
-          renderPatients(sorted);
-          renderPatientsTable(sorted);
-          return;
-      }
-
-      searchTimeout = setTimeout(async () => {
-          if (activeAbortController) activeAbortController.abort();
-          activeAbortController = new AbortController();
-          const thisSeq = ++lastRequestSeq;
-
-          try {
-              let search = "";
-              let yob = "";
-              let icd = "";
-
-              if (type === "name" || type === "id") search = value;
-              if (type === "yob") yob = value;
-              if (type === "icd") icd = value;
-
-              const params = new URLSearchParams({ search, yob, icd, sort });
-              const res = await fetch(`/api/patients?${params.toString()}`, {
-                  signal: activeAbortController.signal
-              });
-              if (!res.ok) return;
-              const data = await res.json();
-
-              if (thisSeq !== lastRequestSeq) return;
-
-              renderPatients(data);
-              renderPatientsTable(data);
-          } catch (err) {
-              if (err && err.name === "AbortError") return;
-              console.error(err);
-          }
-      }, 150);
-  }
-
-  // Search Input Listener
-  unifiedSearchInput.addEventListener("input", () => {
-    validateUnifiedInput();
-    fetchPatients();
-  });
-
-  // Search Type Change Listener
-  searchType.addEventListener("change", () => {
-    unifiedSearchInput.value = "";
-    if (activeAbortController) activeAbortController.abort();
-    fetchPatients();
-  });
-
-  // Sort Listener
-  if (sortBy) {
-    sortBy.addEventListener("change", fetchPatients);
-  }
-
-  // View Toggle Elements
-  const gridBtn = document.getElementById("gridView");
-  const listBtn = document.getElementById("listView");
-
-  const cardView = document.querySelector(".patient-grid");
-  const horizontalView = document.getElementById("horizontalView");
-
-  // Load Saved View Mode
-  if (localStorage.getItem("patientView") === "horizontal") {
-      cardView.style.display = "none";
-      horizontalView.style.display = "block";
-  } else {
-      cardView.style.display = "grid";
-      horizontalView.style.display = "none";
-  }
-
-  // Update Active Toggle Button
-  function updateActiveButton() {
-      const view = localStorage.getItem("patientView") || "card";
-      if (view === "card") {
-          gridBtn.classList.add("active");
-          listBtn.classList.remove("active");
-      } else {
-          gridBtn.classList.remove("active");
-          listBtn.classList.add("active");
-      }
-  }
-
-  updateActiveButton();
-
-  // Grid View Button
-  gridBtn.addEventListener("click", () => {
-      cardView.style.display = "grid";
-      horizontalView.style.display = "none";
-      localStorage.setItem("patientView", "card");
-      updateActiveButton();
-  });
-
-  // Horizontal List View Button
-  listBtn.addEventListener("click", () => {
-      cardView.style.display = "none";
-      horizontalView.style.display = "block";
-      localStorage.setItem("patientView", "horizontal");
-      updateActiveButton();
-  });
-
-  // Load Initial Patients
-  loadInitialPatients();
-  </script>
-
-  <script>
-    // Custom Select Dropdown
-    document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
-      const select = wrapper.querySelector("select");
-
-      // Main Custom Select
-      const custom = document.createElement("div");
-      custom.className = "custom-select";
-
-      // Selected Item Container
-      const selected = document.createElement("div");
-      selected.className = "custom-select-selected";
-
-      // Selected Label
-      const selectedLabel = document.createElement("span");
-      selectedLabel.className = "custom-select-selected-label";
-
-      // Dropdown Arrow
-      const selectedArrow = document.createElement("span");
-      selectedArrow.className = "custom-select-selected-arrow";
-      selectedArrow.setAttribute("aria-hidden", "true");
-      selectedArrow.innerHTML = "&#9662;";
-
-      // Dropdown Items
-      const items = document.createElement("div");
-      items.className = "custom-select-items";
-
-      // Disabled Select
-      if (select.disabled) {
-        custom.classList.add("disabled");
-      }
-
-      // Render Dropdown Options
-      function renderOptions() {
-        items.innerHTML = "";
-
-        Array.from(select.options).forEach((option, index) => {
-          if (option.value === "" || option.disabled || index === select.selectedIndex) return;
-
-          const div = document.createElement("div");
-          div.textContent = option.text;
-
-          // Select Option
-          div.addEventListener("click", () => {
-            if (select.disabled) return;
-
-            select.selectedIndex = index;
-            select.dispatchEvent(new Event("change"));
-
-            // Set Default Selected Text
-            selectedLabel.textContent = option.text;
-            renderOptions();
-            custom.classList.remove("open");
-          });
-
-          items.appendChild(div);
+    if (type === "name") {
+        const qLower = q.toLowerCase();
+        return patients.filter(p => {
+            const fullName = (p.FullName || "").toLowerCase().trim();
+            const nameParts = fullName.split(/\s+/).filter(Boolean);
+            return fullName.startsWith(qLower) || nameParts.some(part => part.startsWith(qLower));
         });
-      }
+    }
 
-      selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
+    if (type === "id") {
+        const qLower = q.toLowerCase();
+        return patients.filter(p => (p.ID || "").toLowerCase().startsWith(qLower));
+    }
 
-      renderOptions();
+    if (type === "yob") {
+        return patients.filter(p => {
+            const dob = String(p.DOB || "");
+            if (dob) return dob.slice(0, 4).startsWith(q);
+            return String(p.YOB || "").startsWith(q);
+        });
+    }
 
-      // Open / Close Custom Select
-      selected.addEventListener("click", (e) => {
+    return [...patients];
+}
+
+function sortPatientsLocal(patients, sort) {
+    const items = [...patients];
+    const getDobString = (patient) => String(patient.DOB || "");
+
+    if (sort === "name_asc") {
+        items.sort((a, b) => (a.FullName || "").localeCompare(b.FullName || "", undefined, { sensitivity: "base" }));
+    } else if (sort === "name_desc") {
+        items.sort((a, b) => (b.FullName || "").localeCompare(a.FullName || "", undefined, { sensitivity: "base" }));
+    } else if (sort === "age_young") {
+        items.sort((a, b) => {
+            const dobA = getDobString(a);
+            const dobB = getDobString(b);
+            if (!dobA && !dobB) return 0;
+            if (!dobA) return 1;
+            if (!dobB) return -1;
+            return dobB.localeCompare(dobA);
+        });
+    } else if (sort === "age_old") {
+        items.sort((a, b) => {
+            const dobA = getDobString(a);
+            const dobB = getDobString(b);
+            if (!dobA && !dobB) return 0;
+            if (!dobA) return 1;
+            if (!dobB) return -1;
+            return dobA.localeCompare(dobB);
+        });
+    }
+
+    return items;
+}
+
+async function loadInitialPatients() {
+    if (initialPatientsLoaded) return initialPatientsData;
+    if (initialPatientsLoadPromise) return initialPatientsLoadPromise;
+
+    initialPatientsLoadPromise = (async () => {
+        try {
+            const res = await fetch("/api/patients");
+            if (!res.ok) throw new Error("Failed to load patients");
+
+            const data = await res.json();
+            initialPatientsData = data;
+            initialPatientsLoaded = true;
+            renderPatients(data);
+            renderPatientsTable(data);
+            return data;
+        } catch (err) {
+            console.error(err);
+            renderPatients([]);
+            renderPatientsTable([]);
+            return [];
+        } finally {
+            initialPatientsLoadPromise = null;
+        }
+    })();
+
+    return initialPatientsLoadPromise;
+}
+
+function validateUnifiedInput() {
+  let value = unifiedSearchInput.value;
+  if (!value) return;
+
+  const type = searchType.value;
+
+  if (type === "name") {
+    value = value.replace(/[^a-zA-Z]/g, "");
+  } else if (type === "id") {
+    value = value.replace(/[^0-9]/g, "");
+  } else if (type === "yob") {
+    value = value.replace(/[^0-9]/g, "");
+    if (value.length > 4) value = value.slice(0, 4);
+  } else if (type === "icd") {
+    value = value.replace(/[^a-zA-Z0-9.]/g, "");
+    value = value.replace(/^\./, "");
+    value = value.replace(/(\..*)\./g, "$1");
+    value = value.toUpperCase();
+  }
+
+  unifiedSearchInput.value = value;
+}
+
+async function fetchPatients() {
+    clearTimeout(searchTimeout);
+
+    const value = unifiedSearchInput.value.trim();
+    const type = searchType.value;
+    const sort = sortBy ? sortBy.value || "" : "";
+
+    const needsServerData =
+        type === "icd" ||
+        sort === "icd_date";
+
+    if (!needsServerData) {
+        if (!initialPatientsLoaded) {
+            await loadInitialPatients();
+        }
+        const filtered = filterPatientsLocal(initialPatientsData, value, type);
+        const sorted = sortPatientsLocal(filtered, sort);
+        renderPatients(sorted);
+        renderPatientsTable(sorted);
+        return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+        if (activeAbortController) activeAbortController.abort();
+        activeAbortController = new AbortController();
+        const thisSeq = ++lastRequestSeq;
+
+        try {
+            let search = "";
+            let yob = "";
+            let icd = "";
+
+            if (type === "name" || type === "id") search = value;
+            if (type === "yob") yob = value;
+            if (type === "icd") icd = value;
+
+            const params = new URLSearchParams({ search, yob, icd, sort });
+            const res = await fetch(`/api/patients?${params.toString()}`, {
+                signal: activeAbortController.signal
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            if (thisSeq !== lastRequestSeq) return;
+
+            renderPatients(data);
+            renderPatientsTable(data);
+        } catch (err) {
+            if (err && err.name === "AbortError") return;
+            console.error(err);
+        }
+    }, 150);
+}
+
+unifiedSearchInput.addEventListener("input", () => {
+  validateUnifiedInput();
+  fetchPatients();
+});
+
+searchType.addEventListener("change", () => {
+  unifiedSearchInput.value = "";
+  if (activeAbortController) activeAbortController.abort();
+  fetchPatients();
+});
+
+if (sortBy) {
+  sortBy.addEventListener("change", fetchPatients);
+}
+
+const gridBtn = document.getElementById("gridView");
+const listBtn = document.getElementById("listView");
+
+const cardView = document.querySelector(".patient-grid");
+const horizontalView = document.getElementById("horizontalView");
+
+if (localStorage.getItem("patientView") === "horizontal") {
+    cardView.style.display = "none";
+    horizontalView.style.display = "block";
+} else {
+    cardView.style.display = "grid";
+    horizontalView.style.display = "none";
+}
+
+function updateActiveButton() {
+    const view = localStorage.getItem("patientView") || "card";
+    if (view === "card") {
+        gridBtn.classList.add("active");
+        listBtn.classList.remove("active");
+    } else {
+        gridBtn.classList.remove("active");
+        listBtn.classList.add("active");
+    }
+}
+
+updateActiveButton();
+
+gridBtn.addEventListener("click", () => {
+    cardView.style.display = "grid";
+    horizontalView.style.display = "none";
+    localStorage.setItem("patientView", "card");
+    updateActiveButton();
+});
+
+listBtn.addEventListener("click", () => {
+    cardView.style.display = "none";
+    horizontalView.style.display = "block";
+    localStorage.setItem("patientView", "horizontal");
+    updateActiveButton();
+});
+
+loadInitialPatients();
+</script>
+
+<script>
+document.querySelectorAll(".custom-select-wrapper").forEach(wrapper => {
+  const select = wrapper.querySelector("select");
+
+  const custom = document.createElement("div");
+  custom.className = "custom-select";
+
+  const selected = document.createElement("div");
+  selected.className = "custom-select-selected";
+
+  const selectedLabel = document.createElement("span");
+  selectedLabel.className = "custom-select-selected-label";
+
+  const selectedArrow = document.createElement("span");
+  selectedArrow.className = "custom-select-selected-arrow";
+  selectedArrow.setAttribute("aria-hidden", "true");
+  selectedArrow.innerHTML = "&#9662;";
+
+  const items = document.createElement("div");
+  items.className = "custom-select-items";
+
+  if (select.disabled) {
+    custom.classList.add("disabled");
+  }
+
+  function renderOptions() {
+    items.innerHTML = "";
+
+    Array.from(select.options).forEach((option, index) => {
+      if (option.value === "" || option.disabled || index === select.selectedIndex) return;
+
+      const div = document.createElement("div");
+      div.textContent = option.text;
+
+      div.addEventListener("click", () => {
         if (select.disabled) return;
 
-        e.stopPropagation();
-        const wasOpen = custom.classList.contains("open");
-        document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-        if (!wasOpen) custom.classList.add("open");
+        select.selectedIndex = index;
+        select.dispatchEvent(new Event("change"));
+
+        selectedLabel.textContent = option.text;
+        renderOptions();
+        custom.classList.remove("open");
       });
 
-      // Build Custom Select Structure
-      selected.appendChild(selectedLabel);
-      selected.appendChild(selectedArrow);
-      custom.appendChild(selected);
-      custom.appendChild(items);
-      wrapper.appendChild(custom);
+      items.appendChild(div);
     });
+  }
 
-    // Close Dropdown When Clicking Outside
-    document.addEventListener("click", () => {
-      document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
-    });
-  </script>
+  selectedLabel.textContent = select.options[select.selectedIndex]?.text || "Select";
+
+  renderOptions();
+
+  selected.addEventListener("click", (e) => {
+    if (select.disabled) return;
+
+    e.stopPropagation();
+    const wasOpen = custom.classList.contains("open");
+    document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+    if (!wasOpen) custom.classList.add("open");
+  });
+
+  selected.appendChild(selectedLabel);
+  selected.appendChild(selectedArrow);
+  custom.appendChild(selected);
+  custom.appendChild(items);
+  wrapper.appendChild(custom);
+});
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".custom-select").forEach(s => s.classList.remove("open"));
+});
+</script>
 </body>
 </html>
