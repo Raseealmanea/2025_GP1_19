@@ -797,15 +797,26 @@ def create_app():
                 "ICD_ID": icd_id,
                 "Adjusted": [c["Code"] for c in cleaned_adjusted],
                 "Predicted": cleaned_predicted,
-                "Analysis": cleaned_analysis,
-                "AnalysisSummary": {
-                    "TotalPredictions": total_predictions,
-                    "AcceptedPredictions": accepted_count,
-                    "AcceptanceRate": (accepted_count / total_predictions) if total_predictions else 0,
-                    "AverageThresholdAtSave": avg_threshold
-                },
                 "AdjustedBy": session.get("user_id"),
                 "AdjustedAt": now
+            })
+            # Save prediction analysis as a separate document inside ICDcode
+            analysis_id = "analysis_id_" + uuid.uuid4().hex[:8]
+            icd_ref.collection("PredictedAnalysis").document(analysis_id).set({
+                "AnalysisID": analysis_id,
+                "Rows": cleaned_analysis,
+                "CreatedAt": now
+            })
+
+            # Save analysis summary as a separate document inside ICDcode
+            summary_id = "summary_id_" + uuid.uuid4().hex[:8]
+            icd_ref.collection("AnalysisSummary").document(summary_id).set({
+                "SummaryID": summary_id,
+                "TotalPredictions": total_predictions,
+                "AcceptedPredictions": accepted_count,
+                "AcceptanceRate": (accepted_count / total_predictions) if total_predictions else 0,
+                "AverageThresholdAtSave": avg_threshold,
+                "CreatedAt": now
             })
 
             invalidate_dashboard_cache(icd=True)
@@ -1125,7 +1136,7 @@ def create_app():
         audio_file.save(temp_path)
 
         try:
-            # Auto-detect language (you can force language="en" or "ar" if you want)
+            # Auto-detect language 
             result = app.whisper_model.transcribe(temp_path)
             text = (result.get("text") or "").strip()
             language = result.get("language", "unknown")
@@ -1562,7 +1573,12 @@ def create_app():
                     total_icd_docs += 1
                     icd_data = icd_doc.to_dict() or {}
 
-                    analysis_rows = icd_data.get("Analysis", []) or []
+                    analysis_rows = []
+
+                    analysis_docs = icd_doc.reference.collection("PredictedAnalysis").stream()
+                    for analysis_doc in analysis_docs:
+                        analysis_data = analysis_doc.to_dict() or {}
+                        analysis_rows.extend(analysis_data.get("Rows", []) or [])
 
                     adjusted_codes = {
                         str(x).strip().upper()
@@ -1718,7 +1734,22 @@ def create_app():
         try:
             # delete all ICD docs under this note
             icd_ref = note_ref.collection("ICDcode")
-            delete_collection(icd_ref, batch_size=50)
+            for icd_doc in icd_ref.stream():
+
+                # delete Analysis subcollection
+                delete_collection(
+                    icd_doc.reference.collection("PredictedAnalysis"),
+                    batch_size=50
+                )
+
+                # delete AnalysisSummary subcollection
+                delete_collection(
+                    icd_doc.reference.collection("AnalysisSummary"),
+                    batch_size=50
+                )
+
+                # delete ICD document itself
+                icd_doc.reference.delete()
 
             # delete the note itself
             note_ref.delete()
