@@ -26,22 +26,21 @@
   </nav>
 
   <!--  MAIN PAGE CONTAINER -->
-  <main class="container card" style="padding:24px 24px 16px;">
+  <main class="container card u-card-padding-lg">
 
     <!-- Page title and edit button -->
     <div class="page-topbar">
       <div>
-        <h1 style="margin:0">
+        <h1 class="u-heading-reset">
           {% if mode == 'info' %}Edit Patient{% else %}View Patient{% endif %}
         </h1>
-        <small style="opacity:.75;">{{ patient_name }} — {{ pid }}</small>
+        <small class="patient-meta">{{ patient_name }} — {{ pid }}</small>
       </div>
 
-      <div class="top-actions" style="display:flex; gap:8px; align-items:center;">
+      <div class="top-actions top-actions-inline">
         <a class="icon-btn patient-edit-btn"
           href="{{ url_for('view_patient', pid=pid, mode='info') }}"
-          title="Edit Patient Info"
-          style="display:inline-flex; align-items:center;">
+          title="Edit Patient Info">
           <i class="fa-solid fa-user-pen"></i>
         </a>
       </div>
@@ -52,7 +51,7 @@
 
      <!-- Server-side validation errors -->
     {% if errors %}
-      <div class="alert error" style="margin-bottom:16px">
+      <div class="alert error u-alert-gap-bottom">
         <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
       </div>
     {% endif %}
@@ -169,13 +168,13 @@
       </form>
     {% endif %}
 
-    <hr style="margin:18px 0; opacity:.25">
+    <hr class="section-divider">
 
     <!-- =========================
         MEDICAL NOTES SECTION
     ========================== -->
 
-    <h2 style="margin:0 0 12px">Medical Notes & ICD Codes</h2>
+    <h2 class="section-title-tight">Medical Notes & ICD Codes</h2>
 
     <!-- ================= NOTES CONTROL PANEL ================= -->
     <div class="notes-controls">
@@ -200,7 +199,7 @@
         <select id="filterType">
           <option value="all">All Notes</option>
           <option value="predicted">Has Predicted Codes</option>
-          <option value="adjusted">Has Adjusted Codes</option>
+          <option value="adjusted">Has Added Codes</option>
         </select>
       </div>
 
@@ -230,10 +229,10 @@
             data-icd-count="{{ ((n.icd_codes_str.split(',') | length) if n.icd_codes_str else 0) + ((n.predicted_codes_str.split(',') | length) if n.predicted_codes_str else 0) }}">
             
              <!-- Note header with edit/delete buttons -->
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <div class="note-card-header">
               <div>
                 <strong>Note</strong>
-                <small style="opacity:.75; margin-left:8px;">{{ n.created_date }}</small>
+                <small class="note-date-meta">{{ n.created_date }}</small>
               </div>
 
               <div class="note-icon-actions">
@@ -258,7 +257,7 @@
               <input type="hidden" name="predicted_icd_codes" id="predicted-icd-input-{{ i }}" value="{{ n.predicted_codes_str }}">
 
               <!-- Note text area -->
-              <div class="row" style="margin-top:10px;">
+              <div class="row note-text-row">
                 <label>Note Text</label>
                 <div class="control">
                   <!-- View mode -->
@@ -267,7 +266,7 @@
                   </div>
 
                   <!-- Edit mode -->
-                  <div class="note-editor" style="display:none;">
+                  <div class="note-editor">
                     <textarea class="note-text edit-mode"
                       name="note_text"
                       rows="4">{{ n.note_text }}</textarea>
@@ -276,11 +275,11 @@
                 </div>
               </div>
 
-              <!-- Adjusted ICD codes -->
+              <!-- Added ICD codes -->
               <div class="row">
-                <label>Adjusted ICD Codes</label>
+                <label>Added ICD Codes</label>
                 <div class="control">
-                  <div class="selected-codes" id="chips-{{ i }}" style="margin-bottom:10px;">
+                  <div class="selected-codes selected-codes-spaced" id="chips-{{ i }}">
                     {% set codes = (n.icd_codes_str or '') %}
                     {% if codes.strip() %}
                       {% for c in codes.split(',') %}
@@ -293,15 +292,14 @@
                         {% endif %}
                       {% endfor %}
                     {% else %}
-                      <small style="opacity:.75;">No ICD codes selected.</small>
+                      <small class="note-empty-small">No ICD codes selected.</small>
                     {% endif %}
                   </div>
 
                   <button type="button"
-                    class="btn-secondary icd-browse-btn"
+                    class="btn-secondary icd-browse-btn u-hidden-initial"
                     onclick="openICDModal({{ i }})"
-                    disabled
-                    style="display:none;">
+                    disabled>
                     <i class="fa-solid fa-magnifying-glass"></i> Browse / Search ICD Codes
                   </button>
                 </div>
@@ -311,7 +309,7 @@
               <div class="row">
                 <label>Predicted ICD Codes</label>
                 <div class="control">
-                  <div class="selected-codes predicted-codes" id="predicted-chips-{{ i }}" style="margin-bottom:10px;">
+                  <div class="selected-codes predicted-codes selected-codes-spaced" id="predicted-chips-{{ i }}">
                     {% set predicted = (n.predicted_codes_str or '') %}
                     {% if predicted.strip() %}
                       {% for c in predicted.split(',') %}
@@ -324,7 +322,7 @@
                         {% endif %}
                       {% endfor %}
                     {% else %}
-                      <small style="opacity:.75;">No predicted ICD codes.</small>
+                      <small class="note-empty-small">No predicted ICD codes.</small>
                     {% endif %}
                   </div>
                 </div>
@@ -339,25 +337,25 @@
           </div>
         {% endfor %}
       {% else %}
-        <p style="opacity:.8">No medical notes found for this patient.</p>
+        <p class="empty-note-message">No medical notes found for this patient.</p>
       {% endif %}
     </div>
 
     <!-- Message shown when filters return no notes -->
-    <p id="noResultsMsg" style="display:none; opacity:.7; margin-top:10px;">
+    <p id="noResultsMsg" class="no-results-msg">
       No notes match your search.
     </p>
   </main>
 
   <!-- ICD Modal -->
   <div id="icdModal" class="confirm-modal">
-    <div class="confirm-box" style="max-width:900px; width:92%;">
+    <div class="confirm-box icd-modal-wide">
       <h3 class="confirm-title"><i class="fa-solid fa-list-check"></i> ICD Code Browser</h3>
-      <p class="confirm-message" style="margin-top:6px;">Search and select ICD codes for this note.</p>
+      <p class="confirm-message confirm-message-tight">Search and select ICD codes for this note.</p>
 
-      <div class="icd-container" style="margin-top:12px;">
+      <div class="icd-container icd-container-top">
         <div id="icdCategoryBoxes" class="category-boxes"></div>
-        <div id="icdSelectedCodesContainer" style="margin-top:10px;"></div>
+        <div id="icdSelectedCodesContainer" class="selected-codes-top"></div>
 
         <div class="search-section">
           <div class="search-bar">
@@ -366,10 +364,10 @@
           <button type="button" class="search-btn" id="icdSearchBtn">Search</button>
         </div>
 
-        <div id="icdResults" style="margin-top: 10px;"></div>
+        <div id="icdResults" class="u-results-spacing"></div>
       </div>
 
-      <div class="confirm-actions" style="margin-top:14px;">
+      <div class="confirm-actions confirm-actions-top">
         <button type="button" id="icdCancelBtn" class="btn-secondary">Cancel</button>
         <button type="button" id="icdSaveBtn" class="btn-primary">Save ICD Codes</button>
       </div>
@@ -420,7 +418,7 @@
         url.searchParams.delete("saved");
       }
       if (err === "icd_required") {
-      showToast("You must keep at least one ICD code for this note, either adjusted or predicted.", "error", 5000, "soft");
+      showToast("You must keep at least one ICD code for this note, either added or predicted.", "error", 5000, "soft");
       url.searchParams.delete("err");
     } else if (err === "note_empty") {
       showToast("The medical note cannot be empty.", "error", 5000, "soft");
@@ -876,7 +874,7 @@
           .split(",").map(s => s.trim()).filter(Boolean);
 
         if (adjustedCodes.length === 0 && predictedCodes.length === 0) {
-          showToast("A note must have at least one ICD code, either adjusted or predicted.", "error", 5000, "soft");
+          showToast("A note must have at least one ICD code, either added or predicted.", "error", 5000, "soft");
           return;
         }
 
@@ -963,17 +961,13 @@
       const container = document.getElementById("icdSelectedCodesContainer");
       container.innerHTML = "";
       if (!selectedCodes.length) {
-        container.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+        container.innerHTML = `<small class="note-empty-small">No ICD codes selected.</small>`;
         return;
       }
       selectedCodes.forEach((c) => {
         const div = document.createElement("div");
-        div.className = "selected-code";
-        div.style.display = "inline-flex";
-        div.style.alignItems = "center";
-        div.style.gap = "8px";
-        div.style.margin = "4px 6px 0 0";
-        div.innerHTML = `${c.Code}<span style="cursor:pointer;font-weight:bold;" title="Remove">×</span>`;
+        div.className = "selected-code modal-selected-code";
+        div.innerHTML = `${c.Code}<span class="modal-chip-remove" title="Remove">×</span>`;
         div.querySelector("span").onclick = () => {
           const code = c.Code;
           selectedCodes = selectedCodes.filter(x => x.Code !== code);
@@ -1006,7 +1000,7 @@
           .find(b => (b.textContent || "").toLowerCase() === "all") || container.querySelector(".category-box");
         if (first) first.click();
       } catch {
-        container.innerHTML = `<small style="opacity:.75;">Failed to load categories.</small>`;
+        container.innerHTML = `<small class="note-empty-small">Failed to load categories.</small>`;
       }
     }
     async function loadByCategory(category) {
@@ -1048,7 +1042,7 @@
         const isChecked = selectedCodes.some((c) => c.Code === item.Code) ? "checked" : "";
         div.innerHTML = `
           <input type="checkbox" data-code="${item.Code}" data-desc="${item.Description}" ${isChecked}>
-          <strong style="margin-left:5px;">${item.Code}</strong> - ${item.Description}
+          <strong class="u-code-label">${item.Code}</strong> - ${item.Description}
         `;
         resultsDiv.appendChild(div);
       }
@@ -1077,8 +1071,7 @@
       document.getElementById("icdResults").innerHTML = "";
 
       const results = document.getElementById("icdResults");
-      results.style.maxHeight = "320px";
-      results.style.overflow = "auto";
+      results.classList.add("modal-results-scroll");
       results.removeEventListener("scroll", handleModalScroll);
       results.addEventListener("scroll", handleModalScroll);
     };
@@ -1111,7 +1104,7 @@
       if (chips) {
         chips.innerHTML = "";
         if (!comma) {
-          chips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+          chips.innerHTML = `<small class="note-empty-small">No ICD codes selected.</small>`;
         } else {
           comma.split(",").map(s => s.trim()).filter(Boolean).forEach(code => {
             const span = document.createElement("span");
@@ -1135,7 +1128,7 @@
 
     /* =========================
        REMOVE ICD CODE CHIP
-       Removes adjusted or predicted ICD code
+       Removes added or predicted ICD code
        while keeping at least one code
        ========================= */
     document.addEventListener("click", (e) => {
@@ -1165,7 +1158,7 @@
 
       const totalBefore = adjustedCodes.length + predictedCodes.length;
       if (totalBefore <= 1) {
-        showToast("A note must have at least one ICD code, either adjusted or predicted.", "error", 5000, "soft");
+        showToast("A note must have at least one ICD code, either added or predicted.", "error", 5000, "soft");
         return;
       }
 
@@ -1181,7 +1174,7 @@
       if (adjustedChips) {
         adjustedChips.innerHTML = "";
         if (!adjustedCodes.length) {
-          adjustedChips.innerHTML = `<small style="opacity:.75;">No ICD codes selected.</small>`;
+          adjustedChips.innerHTML = `<small class="note-empty-small">No ICD codes selected.</small>`;
         } else {
           adjustedCodes.forEach(c => {
             const span = document.createElement("span");
@@ -1196,7 +1189,7 @@
       if (predictedChips) {
         predictedChips.innerHTML = "";
         if (!predictedCodes.length) {
-          predictedChips.innerHTML = `<small style="opacity:.75;">No predicted ICD codes.</small>`;
+          predictedChips.innerHTML = `<small class="note-empty-small">No predicted ICD codes.</small>`;
         } else {
           predictedCodes.forEach(c => {
             const span = document.createElement("span");
