@@ -27,12 +27,12 @@
     </div>
   </nav>
 
-  <main class="container card" style="padding:24px 24px 16px;">
-    <h1 style="margin-top:0">Add Patient</h1>
+  <main class="container card u-card-padding-lg">
+    <h1 class="u-heading-no-top">Add Patient</h1>
 
     <!-- Error Messages -->
     {% if errors %}
-      <div class="alert error" style="margin-bottom:16px">
+      <div class="alert error u-alert-gap-bottom">
         <ul>
           {% for e in errors %}
             <li>{{ e }}</li>
