@@ -13,7 +13,7 @@
 
         <!-- Display message -->
         {% if message %}
-        <p style="color: {% if '✅' in message %}green{% else %}red{% endif %};">
+        <p class="{% if '✅' in message %}u-message-success{% else %}u-message-error{% endif %}">
             {{ message|safe }}
         </p>
         {% endif %}
