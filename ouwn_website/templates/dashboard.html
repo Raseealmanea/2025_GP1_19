@@ -119,7 +119,7 @@
         <div class="patient-grid">
           <div class="no-results"><i class="fa-solid fa-spinner fa-spin"></i> Loading patients...</div>
         </div>
-        <div id="horizontalView" style="display: none; overflow-x: auto;">
+        <div id="horizontalView">
           <table class="patient-table">
             <thead>
               <tr>
@@ -340,7 +340,7 @@
         if (!patients || !patients.length) {
             tableBody.innerHTML = `
             <tr>
-              <td colspan="3" style="text-align:center;">No matching patients found</td>
+              <td colspan="3" class="no-results-cell">No matching patients found</td>
             </tr>
             `;
             return;
