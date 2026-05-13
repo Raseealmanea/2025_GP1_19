@@ -7,106 +7,9 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://kit.fontawesome.com/a2d9d6c9c4.js" crossorigin="anonymous"></script>
 
-  <style>
-    /* ===== Predictions Card ===== */
-    .pred-card {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.75);
-      border: 1px solid rgba(120, 80, 160, 0.20);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-      backdrop-filter: blur(10px);
-    }
-    .pred-card.hidden { display: none; }
-
-    .pred-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .pred-title {
-      font-weight: 800;
-      font-size: 16px;
-      color: #2b1b3a;
-    }
-
-    .pred-sub {
-      font-size: 12px;
-      opacity: 0.75;
-      margin-top: 2px;
-      color: #2b1b3a;
-    }
-
-    .pred-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .pred-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255,255,255,0.70);
-      border: 1px solid rgba(0,0,0,0.06);
-    }
-
-    .pred-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .pred-code {
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      color: #2b1b3a;
-    }
-
-    .pred-score {
-      font-weight: 700;
-      color: #2b1b3a;
-      opacity: 0.85;
-      white-space: nowrap;
-    }
-
-    .pred-bar {
-      height: 8px;
-      width: 140px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.08);
-      overflow: hidden;
-    }
-
-    .pred-bar > div {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #7b4bb7, #b08df7);
-    }
-
-    .pred-item input[type="checkbox"]{
-      width: 18px;
-      height: 18px;
-      accent-color: #7b4bb7;
-      cursor: pointer;
-    }
-
-    /* Optional: make predict button consistent if you want */
-    #predictBtn{
-      margin: 10px 0 0;
-    }
-  </style>
 </head>
 
-<body class="form-page medical-note">
+<body class="form-page medical-note page-medical-notes">
 
   {% include "header.html" %}
 
@@ -133,15 +36,15 @@
     <form id="noteForm" class="card">
       <div class="row">
         <label for="name">Patient Name <span class="required">*</span></label>
-        <input name="name" id="name" type="text" value="{{ prefilled_name }}" readonly style="background-color: lightgray;">
+        <input name="name" id="name" class="readonly-field" type="text" value="{{ prefilled_name }}" readonly>
       </div>
 
       <div class="row">
         <label for="pid">National ID / Iqama <span class="required">*</span></label>
-        <input name="pid" id="pid" type="text" value="{{ prefilled_pid }}" readonly style="background-color: lightgray;">
+        <input name="pid" id="pid" class="readonly-field" type="text" value="{{ prefilled_pid }}" readonly>
       </div>
 
-      <div class="row" style="position:relative;">
+      <div class="row note-text-row">
         <label for="note_text">Note <span class="required">*</span></label>
 
         <textarea name="note_text" id="note_text" rows="6">{{ note_text }}</textarea>
@@ -151,11 +54,11 @@
 
       <!-- mic row -->
       <div class="row">
-        <div style="display:flex; gap:10px; align-items:center;">
+        <div class="mic-row-inline">
           <button type="button" id="micBtn" class="mic-btn" aria-label="Start recording">
             <i class="fa-solid fa-microphone"></i>
           </button>
-          <span id="recStatus" style="font-weight:600;"></span>
+          <span id="recStatus" class="rec-status"></span>
         </div>
       </div>
     </form>
@@ -165,35 +68,24 @@
         ========================= -->
     <button type="button" id="predictBtn">✨ Predict</button>
     
-    <div id="thresholdRow" class="pred-card hidden" style="margin-top:10px;">
-      <div class="pred-header" style="margin-bottom:0;">
+    <div id="thresholdRow" class="pred-card pred-card-tight-top hidden">
+      <div class="pred-header pred-header-no-margin">
         <div>
-          <div class="pred-title" style="font-weight:600;">
+          <div class="pred-title pred-title-medium">
             <span id="thresholdTitle">Threshold: 0.50</span>
 
             <i class="fa-solid fa-circle-info"
               id="thresholdInfoIcon"
-              style="cursor:pointer; font-size:20px; opacity:0.8;">
+              class="threshold-info-icon">
             </i>
           </div>
           <div class="pred-sub">Shows predictions above selected confidence</div>
         </div>
       </div>
-      <input id="thresholdInput" type="range" min="0" max="1" step="0.01" value="0.5" style="width:100%;">
+      <input id="thresholdInput" class="threshold-input" type="range" min="0" max="1" step="0.01" value="0.5">
     </div>
 
-    <div id="thresholdTooltip" style="
-    display:none;
-    position:absolute;
-    background:#2b1b3a;
-    color:white;
-    padding:10px 12px;
-    border-radius:10px;
-    font-size:12px;
-    max-width:250px;
-    box-shadow:0 8px 20px rgba(0,0,0,0.2);
-    z-index:999;
-   ">
+    <div id="thresholdTooltip" class="threshold-tooltip">
     Threshold controls which predictions are shown. 
     Only ICD codes with confidence higher than the selected value will appear.
     </div>
@@ -206,7 +98,7 @@
           <div class="pred-sub">Check correct codes to save it</div>
         </div>
 
-        <div class="pred-sub" style="font-weight:600;">
+        <div class="pred-sub pred-title-medium">
           Confidence level
         </div>
       </div>
@@ -224,7 +116,7 @@
       <div id="selectedCodesContainer"></div>
 
       <div class="search-section">
-        <div class="search-bar" style="position:relative;">
+        <div class="search-bar icd-search-bar">
           <input type="text" id="searchBox"
             placeholder="🔍 Search ICD code or keyword..."
             autocomplete="off">
@@ -235,7 +127,7 @@
         <button type="button" class="search-btn" onclick="searchICD()">Search</button>
       </div>
 
-      <div id="results" style="margin-top: 10px;"></div>
+      <div id="results" class="u-results-spacing"></div>
 
       <div class="row actions">
         <button type="button" id="saveBothBtn">Save Note & ICD Codes</button>
@@ -359,7 +251,7 @@
             <div class="pred-code">${p.Code}</div>
           </div>
 
-          <div style="display:flex; align-items:center; gap:10px;">
+          <div class="prediction-meta">
             <div class="pred-score">${pct}%</div>
             <div class="pred-bar"><div style="width:${pct}%;"></div></div>
           </div>
@@ -412,7 +304,7 @@
           div.className = "selected-code";
           div.innerHTML = `
             ${c.Code}
-            <span style="cursor:pointer;font-weight:bold;" onclick="removeCode('${c.Code}')">×</span>
+            <span class="remove-code-btn" onclick="removeCode('${c.Code}')">×</span>
           `;
           container.appendChild(div);
         });
@@ -502,7 +394,7 @@
           const isChecked = selectedCodes.some((c) => c.Code === item.Code) ? "checked" : "";
           div.innerHTML = `
             <input type="checkbox" data-code="${item.Code}" data-desc="${item.Description}" ${isChecked}>
-            <strong style="margin-left:5px;">${item.Code}</strong> - ${item.Description}
+            <strong class="u-code-label">${item.Code}</strong> - ${item.Description}
           `;
           resultsDiv.appendChild(div);
         }
