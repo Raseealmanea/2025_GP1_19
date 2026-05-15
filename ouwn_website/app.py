@@ -801,12 +801,17 @@ def create_app():
                 "AdjustedAt": now
             })
             # Save prediction analysis as a separate document inside ICDcode
-            analysis_id = "analysis_id_" + uuid.uuid4().hex[:8]
-            icd_ref.collection("PredictedAnalysis").document(analysis_id).set({
-                "AnalysisID": analysis_id,
-                "Rows": cleaned_analysis,
-                "CreatedAt": now
-            })
+            for index, row in enumerate(cleaned_analysis):
+                doc_id = f"{index:02d}"
+
+                icd_ref.collection("PredictedAnalysis").document(doc_id).set({
+                    "Code": row.get("Code"),
+                    "Confidence": row.get("Confidence"),
+                    "Selected": row.get("Selected"),
+                    "VisibleAtSave": row.get("VisibleAtSave"),
+                    "ThresholdAtSave": row.get("ThresholdAtSave"),
+                    "Rank": row.get("Rank")
+                })
 
             # Save analysis summary as a separate document inside ICDcode
             summary_id = "summary_id_" + uuid.uuid4().hex[:8]
@@ -1010,41 +1015,58 @@ def create_app():
 
         return render_template("profile.html", user=current_user)
 
-
+    # Route for requesting a password change link
     @app.route("/change-password", methods=["GET", "POST"])
     def change_password_request():
+        # Redirect user to login page if they are not logged in
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
 
+        # Get the current logged-in healthcare provider document from Firestore
         user_ref = db.collection('HealthCareP').document(session['user_id'])
         user_doc = user_ref.get()
+        
+        # Convert user document to dictionary, or use empty default values if not found
         current_user = user_doc.to_dict() if user_doc.exists else {"Name": "", "UserID": "", "Email": ""}
+        # Get the saved email address for the logged-in user
         email = current_user.get("Email", "").strip()
 
+        # Handle form submission when the user clicks the change password button
         if request.method == "POST":
+           # Get the user's name to personalize the email
             username = current_user.get("Name", "User")
 
+            # Stop the process if no email exists for this account
             if not email:
                 flash("No email is saved for this account.", "error")
                 return redirect(url_for("change_password_request"))
 
             try:
+                # Import helper functions used to generate token, build email, and send email
                 from routes.auth_reset import get_serializer, build_password_action_email, send_brevo_email
 
+                # Create a secure serializer for generating the password change token
                 s = get_serializer()
+                # Generate a signed token containing the user's email and change-password mode
                 token = s.dumps({"email": email, "mode": "change"}, salt="password-reset")
+                # Build the full password change link sent to the user's email
                 change_link = url_for("auth_reset.reset_password", token=token, _external=True)
+                # Build the email subject, plain text body, and HTML body
                 subject, text_body, html_body = build_password_action_email(change_link, username, mode="change")
 
+                # Send the change password email using Brevo
                 if send_brevo_email(email, subject, html_body, text_body):
                     flash("A change password link has been sent to your email.", "success")
                 else:
                     flash("Failed to send the change password email. Please try again later.", "error")
             except Exception as e:
+                # Show any unexpected error message
                 flash(str(e), "error")
 
+            # Redirect back to the same page after sending the email
             return redirect(url_for("change_password_request"))
 
+        # Render the change password request page for GET requests
         return render_template("change_password_request.html", user=current_user, email=email)
 
     @app.route("/check")
@@ -1149,19 +1171,24 @@ def create_app():
             except Exception:
                 pass
 
+    # DELETE FIRESTORE COLLECTION
     def delete_collection(coll_ref, batch_size=50):
+        # Get a limited number of documents from the collection
         docs = coll_ref.limit(batch_size).stream()
         deleted = 0
 
+        # Delete each document in the collection
         for doc in docs:
             doc.reference.delete()
             deleted += 1
 
+        # Continue deleting if more documents still exist
         if deleted >= batch_size:
             return delete_collection(coll_ref, batch_size)
         return deleted
 
 
+    # DELETE PATIENT WITH ALL RELATED DATA
     def delete_patient_everything(patient_ref):
         """
         Deletes:
@@ -1170,6 +1197,7 @@ def create_app():
               ICDcode/{icdId}
         then deletes the patient doc itself.
         """
+        # Get all medical notes under the patient
         notes_ref = patient_ref.collection("MedicalNote")
         notes = list(notes_ref.stream())
 
@@ -1187,28 +1215,36 @@ def create_app():
         patient_ref.delete()
 
 
+    # DELETE PATIENT ROUTE
     @app.route("/delete_patient/<pid>", methods=["POST"])
     def delete_patient(pid):
+        # Prevent unauthorized access
         if 'user_id' not in session:
             return jsonify({"error": "Unauthorized"}), 401
 
+        # Clean patient ID
         pid = (pid or "").strip()
 
+        # Validate patient ID format
         if not re.fullmatch(r"\d{10}", pid):
             return jsonify({"error": "Invalid patient ID."}), 400
 
         try:
+             # Get patient document reference
             patient_ref = db.collection("Patient").document(pid)
             doc = patient_ref.get()
 
+            # Check if patient exists
             if not doc.exists:
                 return jsonify({"error": "Patient not found."}), 404
 
+            # Delete patient with all related collections
             delete_patient_everything(patient_ref)
             invalidate_dashboard_cache()
             return jsonify({"status": "success"})
 
         except Exception as e:
+             # Return server error
             return jsonify({"status": "error", "message": str(e)}), 500
         
     
@@ -1216,19 +1252,24 @@ def create_app():
     # ---------------------------
     @app.route("/edit_patient/<pid>", methods=["GET", "POST"])
     def edit_patient(pid):
+        # Ensure the user is logged in
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
 
+         # Clean patient ID
         pid = (pid or "").strip()
         if not re.fullmatch(r"\d{10}", pid):
             return redirect(url_for("dashboard"))
 
+        # Validate patient ID
         patient_ref = db.collection("Patient").document(pid)
         patient_doc = patient_ref.get()
+
+        # Redirect if patient does not exist
         if not patient_doc.exists:
             return redirect(url_for("dashboard"))
 
-        # ✅ GET => open SAME page in info mode
+        # Open patient information page in info mode
         if request.method == "GET":
             return redirect(url_for("view_patient", pid=pid, mode="info"))
 
@@ -1236,6 +1277,7 @@ def create_app():
         pdata = patient_doc.to_dict() or {}
         errors = []
 
+        # Get submitted form values
         full_name = request.form.get("full_name", "").strip()
         dob = request.form.get("dob", "").strip()
         gender = request.form.get("gender", "").strip()
@@ -1244,6 +1286,7 @@ def create_app():
         address = request.form.get("address", "").strip()
         blood = request.form.get("blood_type", "").strip()
 
+        # Store form data for re-rendering
         form = {
             "full_name": full_name,
             "dob": dob,
@@ -1255,25 +1298,33 @@ def create_app():
         }
 
         # ---- validations ----
+
+         # Ensure all fields are filled
         if not all([full_name, dob, gender, phone, email, address, blood]):
             errors.append("All fields are required.")
 
+        # Validate phone number format
         if phone and not re.fullmatch(r'^05\d{8}$', phone):
             errors.append("Phone must start with 05 and be 10 digits.")
-
+        
+        # Validate email format
         if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
             errors.append("Invalid email format.")
 
+        # Validate date of birth
         if dob:
             try:
                 dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                # Prevent future birth dates
                 if dob_date > date.today():
                     errors.append("Date of Birth cannot be in the future.")
 
+                # Calculate age
                 age = date.today().year - dob_date.year
                 if (date.today().month, date.today().day) < (dob_date.month, dob_date.day):
                     age -= 1
 
+                 # Prevent unrealistic ages
                 if age > 130:
                     errors.append("Age cannot exceed 130 years.")
             except ValueError:
@@ -1287,23 +1338,30 @@ def create_app():
             for n in notes:
                 nd = n.to_dict() or {}
 
+                # Get the created date from the medical note document
                 created = nd.get("CreatedDate")
                 created_str = ""
                 try:
+                    # If the created value is a datetime object
                     if isinstance(created, datetime):
                         created_str = created.strftime("%Y-%m-%d %H:%M")
                         created_iso = created.isoformat()
+                    # If created exists but is not datetime
                     elif created:
                         created_str = str(created)
                         created_iso = ""
                 except:
+                     # Handle invalid date formatting
                     created_str = ""
 
+                # ICD DATA VARIABLES
                 icd_id = ""
                 adjusted_codes = []
                 predicted_codes = []
 
+                # GET ICD CODE DATA
                 try:
+                    # Get first ICD document under this note
                     icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
                     if icd_docs:
                         icd_id = icd_docs[0].id
@@ -1313,6 +1371,7 @@ def create_app():
                 except:
                     pass
 
+                # FORMAT ICD CODES
                 adjusted_codes_str = ", ".join(
                     [str(x).strip().upper() for x in adjusted_codes if str(x).strip()]
                 )
@@ -1321,6 +1380,7 @@ def create_app():
                     [str(x).strip().upper() for x in predicted_codes if str(x).strip()]
                 )
 
+                # ADD NOTE DATA TO OUTPUT LIST
                 notes_out.append({
                     "note_id": n.id,
                     "note_text": nd.get("Note", ""),
@@ -1331,6 +1391,7 @@ def create_app():
                     "predicted_codes_str": predicted_codes_str
                 })
 
+            # GET PATIENT NAME
             patient_name = (pdata.get("FullName") or "")
             return render_template(
                 "view_patient.html",
@@ -1346,6 +1407,7 @@ def create_app():
         def norm(s):
             return (s or "").strip()
 
+        # Compare old and new patient values
         changed = (
             norm(pdata.get("FullName")) != full_name or
             norm(pdata.get("DOB")) != dob or
@@ -1356,6 +1418,7 @@ def create_app():
             norm(pdata.get("BloodType")) != blood
         )
 
+        # UPDATE PATIENT DATA
         if changed:
             patient_ref.update({
                 "FullName": full_name,
@@ -1387,25 +1450,33 @@ def create_app():
     # ---------------------------
     @app.route("/edit_medical_notes/<pid>/<note_id>", methods=["POST"])
     def edit_medical_note(pid, note_id):
+         # Prevent unauthorized access
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
 
+        # Clean input values
         pid = (pid or "").strip()
         note_id = (note_id or "").strip()
 
+        # Validate patient ID and note ID
         if not re.fullmatch(r"\d{10}", pid) or not note_id:
             return redirect(url_for("dashboard"))
 
+        # Get patient document
         patient_ref = db.collection("Patient").document(pid)
         patient_doc = patient_ref.get()
+
+        # Redirect if patient does not exist
         if not patient_doc.exists:
             return redirect(url_for("dashboard"))
 
+        # GET FORM DATA
         note_text = request.form.get("note_text", "").strip()
         icd_id = (request.form.get("icd_id") or "").strip()
         raw_adjusted_codes = request.form.get("icd_codes", "") or ""
         raw_predicted_codes = request.form.get("predicted_icd_codes", "") or ""
 
+        # Prevent empty notes
         if not note_text:
             return redirect(url_for("view_patient", pid=pid, err="note_empty"))
         
@@ -1418,6 +1489,7 @@ def create_app():
                 parsed_adjusted.append(code)
                 seen_adjusted.add(code)
 
+        # PARSE ADJUSTED ICD CODES
         parsed_predicted = []
         seen_predicted = set()
         for part in raw_predicted_codes.split(","):
@@ -1437,12 +1509,14 @@ def create_app():
         old_adjusted = []
         old_predicted = []
 
+        # Get existing note document
         note_doc = note_ref.get()
         if note_doc.exists:
             old_note_text = (note_doc.to_dict() or {}).get("Note", "") or ""
 
         icd_ref = None
 
+        # GET EXISTING ICD DOCUMENT
         if icd_id:
             candidate_ref = note_ref.collection("ICDcode").document(icd_id)
             candidate_doc = candidate_ref.get()
@@ -1576,9 +1650,10 @@ def create_app():
                     analysis_rows = []
 
                     analysis_docs = icd_doc.reference.collection("PredictedAnalysis").stream()
+
                     for analysis_doc in analysis_docs:
-                        analysis_data = analysis_doc.to_dict() or {}
-                        analysis_rows.extend(analysis_data.get("Rows", []) or [])
+                        row_data = analysis_doc.to_dict() or {}
+                        analysis_rows.append(row_data)
 
                     adjusted_codes = {
                         str(x).strip().upper()
