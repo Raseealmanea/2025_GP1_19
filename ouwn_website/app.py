@@ -1782,6 +1782,218 @@ def create_app():
             "confidence_ranges": bucket_results,
             "per_code": code_results
         })
+        #Generate graph
+    @app.route("/api/icd_patient_statistics")
+    def icd_patient_statistics():
+                try:
+                    if "user_id" not in session:
+                        return jsonify({
+                            "status": "error",
+                            "message": "Unauthorized"
+                        }), 401
+        
+                    code = request.args.get("code", "").strip().upper()
+                    stat_type = request.args.get("stat_type", "gender").strip().lower()
+        
+                    if not code:
+                        return jsonify({
+                            "status": "error",
+                            "message": "ICD code is required"
+                        }), 400
+        
+                    matched_patients = []
+        
+                    patients_ref = db.collection("Patient").stream()
+        
+                    for patient_doc in patients_ref:
+                        patient_data = patient_doc.to_dict() or {}
+        
+                        matched = False
+        
+                        medical_notes = db.collection("Patient") \
+                            .document(patient_doc.id) \
+                            .collection("MedicalNote") \
+                            .stream()
+        
+                        for note_doc in medical_notes:
+                            icd_collection = db.collection("Patient") \
+                                .document(patient_doc.id) \
+                                .collection("MedicalNote") \
+                                .document(note_doc.id) \
+                                .collection("ICDcode") \
+                                .stream()
+        
+                            for icd_doc in icd_collection:
+                                icd_data = icd_doc.to_dict() or {}
+        
+                                predicted_codes = [
+                                    str(c).strip().upper()
+                                    for c in icd_data.get("Predicted", [])
+                                ]
+        
+                                adjusted_codes = [
+                                    str(c).strip().upper()
+                                    for c in icd_data.get("Adjusted", [])
+                                ]
+        
+                                all_codes = set(predicted_codes + adjusted_codes)
+        
+                                if code in all_codes:
+                                    matched = True
+                                    break
+        
+                            if matched:
+                                break
+        
+                        if matched:
+                            dob = patient_data.get("DOB")
+                            age = None
+        
+                            try:
+                                if dob:
+                                    if isinstance(dob, str):
+                                        dob_date = datetime.strptime(dob, "%Y-%m-%d")
+                                    else:
+                                        dob_date = dob
+        
+                                    today = datetime.today()
+        
+                                    age = (
+                                        today.year
+                                        - dob_date.year
+                                        - (
+                                            (today.month, today.day)
+                                            < (dob_date.month, dob_date.day)
+                                        )
+                                    )
+                            except Exception:
+                                age = None
+        
+                            matched_patients.append({
+                                "Gender": patient_data.get("Gender", ""),
+                                "BloodType": patient_data.get("BloodType", ""),
+                                "Age": age
+                            })
+        
+                    counts = {}
+        
+                    if stat_type == "gender":
+                        ordered_labels = ["Male", "Female", "Unknown"]
+        
+                        counts = {label: 0 for label in ordered_labels}
+        
+                        for patient in matched_patients:
+                            raw_gender = str(
+                                patient.get("Gender", "")
+                            ).strip().lower()
+        
+                            if raw_gender in {"f", "female"}:
+                                gender = "Female"
+                            elif raw_gender in {"m", "male"}:
+                                gender = "Male"
+                            else:
+                                gender = "Unknown"
+        
+                            counts[gender] += 1
+        
+                        labels = ordered_labels
+                        values = [counts[label] for label in labels]
+        
+                    elif stat_type == "age":
+                        ordered_labels = [
+                            "0-17",
+                            "18-30",
+                            "31-45",
+                            "46-60",
+                            "61+"
+                        ]
+        
+                        counts = {label: 0 for label in ordered_labels}
+        
+                        for patient in matched_patients:
+                            age = patient.get("Age")
+        
+                            if age is None:
+                                continue
+                            elif age <= 17:
+                                counts["0-17"] += 1
+                            elif age <= 30:
+                                counts["18-30"] += 1
+                            elif age <= 45:
+                                counts["31-45"] += 1
+                            elif age <= 60:
+                                counts["46-60"] += 1
+                            else:
+                                counts["61+"] += 1
+        
+                        labels = ordered_labels
+                        values = [counts[label] for label in labels]
+        
+                    else:  # blood_type
+                        ordered_labels = [
+                            "A+",
+                            "A-",
+                            "B+",
+                            "B-",
+                            "AB+",
+                            "AB-",
+                            "O+",
+                            "O-",
+                            "Unknown"
+                        ]
+        
+                        counts = {label: 0 for label in ordered_labels}
+        
+                        for patient in matched_patients:
+                            blood_type = str(
+                                patient.get("BloodType", "")
+                            ).strip().upper()
+        
+                            if blood_type not in {
+                                "A+",
+                                "A-",
+                                "B+",
+                                "B-",
+                                "AB+",
+                                "AB-",
+                                "O+",
+                                "O-"
+                            }:
+                                blood_type = "Unknown"
+        
+                            counts[blood_type] += 1
+        
+                        labels = ordered_labels
+                        values = [counts[label] for label in labels]
+        
+                    valid_ages = [
+                        patient["Age"]
+                        for patient in matched_patients
+                        if patient.get("Age") is not None
+                    ]
+        
+                    average_age = round(
+                        sum(valid_ages) / len(valid_ages),
+                        1
+                    ) if valid_ages else "N/A"
+        
+                    return jsonify({
+                        "status": "success",
+                        "code": code,
+                        "stat_type": stat_type,
+                        "labels": labels,
+                        "values": values,
+                        "total_patients": len(matched_patients),
+                        "average_age": average_age
+                    })
+        
+                except Exception as e:
+                    print("ICD patient statistics error:", e)
+        
+                    return jsonify({
+                        "status": "error",
+                        "message": "Failed to generate patient statistics"
+                    }), 500
         # ---------------------------
     # DELETE ONE MEDICAL NOTE + ALL ICD CODES
     # ---------------------------
@@ -1937,7 +2149,7 @@ def create_app():
 
     
 
-    # ✅ Predict
+    #  Predict
     @app.post("/predict_icd")
     def predict_icd_route():
         if "user_id" not in session:
