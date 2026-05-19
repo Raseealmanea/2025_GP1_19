@@ -1575,19 +1575,22 @@ def create_app():
         invalidate_dashboard_cache(icd=True)
 
         return redirect(url_for("view_patient", pid=pid, saved="1" if changed else "0"))
-         #Analysis summary for dashboard
+   
+    #Analysis summary for dashboard
     @app.route("/icd_analysis")
     def icd_analysis():
         if "user_id" not in session:
             return redirect(url_for("Authentication.login"))
+        # Render ICD analysis HTML page
         return render_template("icd_analysis.html")
 
-
+    # ICD Analysis Summary API
     @app.route("/api/icd_analysis_summary")
     def icd_analysis_summary():
         if "user_id" not in session:
             return jsonify({"error": "Unauthorized"}), 401
 
+        # Convert confidence percentage into range bucket
         def confidence_bucket_label(confidence_percent):
             if confidence_percent <= 20:
                 return "0-20%"
@@ -1599,7 +1602,9 @@ def create_app():
                 return "61-80%"
             return "81-100%"
 
+        # Confidence ranges order
         bucket_order = ["0-20%", "21-40%", "41-60%", "61-80%", "81-100%"]
+        # Store statistics for each confidence bucket
         bucket_stats = {
             label: {
                 "label": label,
@@ -1610,6 +1615,7 @@ def create_app():
             for label in bucket_order
         }
 
+        # Store statistics per ICD code
         per_code = defaultdict(lambda: {
             "code": "",
             "total": 0,
@@ -1618,6 +1624,7 @@ def create_app():
             "visible_count": 0
         })
 
+        # Global counters
         total_predictions = 0
         total_accepted = 0
         confidence_sum = 0.0
@@ -1628,6 +1635,7 @@ def create_app():
         docs_with_analysis = 0
         total_icd_docs = 0
 
+        # ICD saving statistics
         # Adjusted = manually added from search/browser
         # Predicted = accepted AI codes
         total_adjusted_codes = 0
@@ -1637,10 +1645,13 @@ def create_app():
 
         patients = db.collection("Patient").stream()
 
+        # Loop through all patients
         for patient in patients:
+            # Get all medical notes
             notes = patient.reference.collection("MedicalNote").stream()
 
             for note in notes:
+                 # Get all ICD documents
                 icd_docs = note.reference.collection("ICDcode").stream()
 
                 for icd_doc in icd_docs:
@@ -1649,77 +1660,93 @@ def create_app():
 
                     analysis_rows = []
 
+                    # Read prediction analysis documents
                     analysis_docs = icd_doc.reference.collection("PredictedAnalysis").stream()
 
                     for analysis_doc in analysis_docs:
                         row_data = analysis_doc.to_dict() or {}
                         analysis_rows.append(row_data)
 
+                    # Get manually adjusted ICD codes
                     adjusted_codes = {
                         str(x).strip().upper()
                         for x in (icd_data.get("Adjusted", []) or [])
                         if str(x).strip()
                     }
 
+                    # Get accepted predicted ICD codes
                     predicted_codes = {
                         str(x).strip().upper()
                         for x in (icd_data.get("Predicted", []) or [])
                         if str(x).strip()
                     }
 
-                    # Since Adjusted now means only manual/search-added codes
+                    ## Manual-only codes
                     adjusted_only_codes = adjusted_codes
 
+                    # Update counters
                     total_adjusted_codes += len(adjusted_codes)
                     total_predicted_saved_codes += len(predicted_codes)
                     total_added_adjusted_codes += len(adjusted_only_codes)
                     total_saved_icd_codes += len(adjusted_codes) + len(predicted_codes)
 
+                    # Count ICD documents that contain analysis
                     if isinstance(analysis_rows, list) and len(analysis_rows) > 0:
                         docs_with_analysis += 1
 
+                    # Process each prediction row
                     for row in analysis_rows:
                         code = str(row.get("Code", "")).strip().upper()
                         if not code:
                             continue
 
+                        # Safely convert confidence score
                         try:
                             confidence = float(row.get("Confidence", 0))
                         except Exception:
                             confidence = 0.0
 
+                        # Keep confidence between 0 and 1
                         confidence = max(0.0, min(confidence, 1.0))
                         confidence_pct = confidence * 100
+                        # Was prediction accepted by user?
                         selected = bool(row.get("Selected", False))
+                        # Was prediction visible after threshold filtering?
                         visible = bool(row.get("VisibleAtSave", False))
 
+                        # Get threshold value used during save
                         try:
                             threshold_value = float(row.get("ThresholdAtSave", 0.5))
                         except Exception:
                             threshold_value = 0.5
 
+                        # Update global statistics
                         total_predictions += 1
                         confidence_sum += confidence_pct
                         total_accepted += 1 if selected else 0
                         threshold_sum += threshold_value
                         threshold_count += 1
 
+                        # Track visible predictions
                         if visible:
                             visible_predictions += 1
                             if selected:
                                 visible_accepted += 1
 
+                        # Update confidence bucket statistics
                         bucket = confidence_bucket_label(confidence_pct)
                         bucket_stats[bucket]["total"] += 1
                         bucket_stats[bucket]["accepted"] += 1 if selected else 0
                         bucket_stats[bucket]["avg_confidence_sum"] += confidence_pct
 
+                        # Update per ICD code statistics
                         per_code[code]["code"] = code
                         per_code[code]["total"] += 1
                         per_code[code]["accepted"] += 1 if selected else 0
                         per_code[code]["confidence_sum"] += confidence_pct
                         per_code[code]["visible_count"] += 1 if visible else 0
 
+        # Build confidence range results
         bucket_results = []
         for label in bucket_order:
             item = bucket_stats[label]
@@ -1731,16 +1758,20 @@ def create_app():
                 "label": label,
                 "total": total,
                 "accepted": accepted,
+                # Acceptance percentage
                 "acceptance_rate": round((accepted / total) * 100, 2) if total else 0,
+                # Average confidence percentage
                 "avg_confidence": round(avg_conf, 2)
             })
 
+        # Build ICD code statistics
         code_results = []
         for code, item in per_code.items():
             total = item["total"]
             accepted = item["accepted"]
             avg_conf = (item["confidence_sum"] / total) if total else 0
 
+            # Sort ICD codes by usage and acceptance rate
             code_results.append({
                 "code": code,
                 "total": total,
@@ -1752,11 +1783,12 @@ def create_app():
 
         code_results.sort(key=lambda x: (-x["total"], -x["acceptance_rate"], x["code"]))
 
-        # manual added codes compared to all saved codes
+        # Calculate model miss rate
         model_miss_rate = round(
             (total_added_adjusted_codes / total_saved_icd_codes) * 100, 2
         ) if total_saved_icd_codes else 0
 
+        # Return final analysis response
         return jsonify({
             "status": "success",
             "summary": {
@@ -1782,7 +1814,8 @@ def create_app():
             "confidence_ranges": bucket_results,
             "per_code": code_results
         })
-        #Generate graph
+    
+    #Generate graph
     @app.route("/api/icd_patient_statistics")
     def icd_patient_statistics():
                 try:
@@ -1792,9 +1825,14 @@ def create_app():
                             "message": "Unauthorized"
                         }), 401
         
+                    # Get request parameters
+                    # code = ICD code to search for
+                    # stat_type = type of graph/statistics
+                    # (gender, age, blood_type)
                     code = request.args.get("code", "").strip().upper()
                     stat_type = request.args.get("stat_type", "gender").strip().lower()
         
+                    # Validate ICD code
                     if not code:
                         return jsonify({
                             "status": "error",
@@ -1803,19 +1841,23 @@ def create_app():
         
                     matched_patients = []
         
+                    # Get all patients from Firestore
                     patients_ref = db.collection("Patient").stream()
         
+                    # Loop through all patients
                     for patient_doc in patients_ref:
                         patient_data = patient_doc.to_dict() or {}
         
                         matched = False
         
+                        # Get all medical notes for patient
                         medical_notes = db.collection("Patient") \
                             .document(patient_doc.id) \
                             .collection("MedicalNote") \
                             .stream()
         
                         for note_doc in medical_notes:
+                            # Get ICD documents under note
                             icd_collection = db.collection("Patient") \
                                 .document(patient_doc.id) \
                                 .collection("MedicalNote") \
@@ -1826,22 +1868,27 @@ def create_app():
                             for icd_doc in icd_collection:
                                 icd_data = icd_doc.to_dict() or {}
         
+                                # Get predicted ICD codes
                                 predicted_codes = [
                                     str(c).strip().upper()
                                     for c in icd_data.get("Predicted", [])
                                 ]
         
+                                # Get manually adjusted ICD codes
                                 adjusted_codes = [
                                     str(c).strip().upper()
                                     for c in icd_data.get("Adjusted", [])
                                 ]
         
+                                # Combine all ICD codes
                                 all_codes = set(predicted_codes + adjusted_codes)
         
                                 if code in all_codes:
                                     matched = True
                                     break
         
+                            # If patient matched ICD code
+                            # calculate age and save patient data
                             if matched:
                                 break
         
@@ -1869,14 +1916,17 @@ def create_app():
                             except Exception:
                                 age = None
         
+                            # Save matched patient data
                             matched_patients.append({
                                 "Gender": patient_data.get("Gender", ""),
                                 "BloodType": patient_data.get("BloodType", ""),
                                 "Age": age
                             })
         
+                    # Store graph counts
                     counts = {}
         
+                    # GENDER STATISTICS
                     if stat_type == "gender":
                         ordered_labels = ["Male", "Female", "Unknown"]
         
@@ -1896,9 +1946,11 @@ def create_app():
         
                             counts[gender] += 1
         
+                        # Prepare graph labels and values
                         labels = ordered_labels
                         values = [counts[label] for label in labels]
         
+                     # AGE STATISTICS
                     elif stat_type == "age":
                         ordered_labels = [
                             "0-17",
@@ -1910,6 +1962,7 @@ def create_app():
         
                         counts = {label: 0 for label in ordered_labels}
         
+                        # Count patients by age range
                         for patient in matched_patients:
                             age = patient.get("Age")
         
@@ -1926,6 +1979,7 @@ def create_app():
                             else:
                                 counts["61+"] += 1
         
+                        # Prepare graph labels and values
                         labels = ordered_labels
                         values = [counts[label] for label in labels]
         
@@ -1944,11 +1998,13 @@ def create_app():
         
                         counts = {label: 0 for label in ordered_labels}
         
+                        # Count blood types
                         for patient in matched_patients:
                             blood_type = str(
                                 patient.get("BloodType", "")
                             ).strip().upper()
         
+                            # Replace invalid blood types
                             if blood_type not in {
                                 "A+",
                                 "A-",
@@ -1963,9 +2019,11 @@ def create_app():
         
                             counts[blood_type] += 1
         
+                        # Prepare graph labels and values
                         labels = ordered_labels
                         values = [counts[label] for label in labels]
         
+                    # Calculate average age
                     valid_ages = [
                         patient["Age"]
                         for patient in matched_patients
@@ -1977,6 +2035,7 @@ def create_app():
                         1
                     ) if valid_ages else "N/A"
         
+                    # Return final statistics
                     return jsonify({
                         "status": "success",
                         "code": code,
@@ -1987,6 +2046,7 @@ def create_app():
                         "average_age": average_age
                     })
         
+                # Handle unexpected errors
                 except Exception as e:
                     print("ICD patient statistics error:", e)
         
@@ -1994,7 +2054,7 @@ def create_app():
                         "status": "error",
                         "message": "Failed to generate patient statistics"
                     }), 500
-        # ---------------------------
+    # ---------------------------
     # DELETE ONE MEDICAL NOTE + ALL ICD CODES
     # ---------------------------
     @app.route("/delete_medical_note/<pid>/<note_id>", methods=["POST"])
@@ -2047,23 +2107,28 @@ def create_app():
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
+    # View Patient Page
     @app.route("/view_patient/<pid>", methods=["GET"])
     def view_patient(pid):
         if 'user_id' not in session:
             return redirect(url_for('Authentication.login'))
 
+        # Validate patient ID
         pid = (pid or "").strip()
         if not re.fullmatch(r"\d{10}", pid):
             return redirect(url_for("dashboard"))
 
+        # Get patient document
         patient_ref = db.collection("Patient").document(pid)
         patient_doc = patient_ref.get()
 
         if not patient_doc.exists:
             return redirect(url_for("dashboard"))
 
+        # Convert Firestore document to dictionary
         pdata = patient_doc.to_dict() or {}
 
+        # Prepare patient form data
         form = {
             "full_name": pdata.get("FullName", ""),
             "dob": pdata.get("DOB", ""),
@@ -2075,19 +2140,23 @@ def create_app():
         }
 
         notes_out = []
+        # Get medical notes
         # Newest first
         notes = patient_ref.collection("MedicalNote").order_by("CreatedDate", direction="DESCENDING").stream()
 
+        # Loop through notes
         for n in notes:
             nd = n.to_dict() or {}
             note_id = n.id
             note_text = nd.get("Note", "")
 
+            # Format created date
             created = nd.get("CreatedDate")
             created_str = ""
             try:
                 if isinstance(created, datetime):
                     created_str = created.strftime("%Y-%m-%d %H:%M")
+                     # ISO format for frontend sorting/filtering
                     created_iso = created.isoformat()
                 elif created:
                     created_str = str(created)
@@ -2096,28 +2165,35 @@ def create_app():
                 created_str = ""
 
 
+            # Default ICD values
             icd_id = ""
             adjusted_codes = []
             predicted_codes = []
 
+            # Get first ICD document
             try:
                 icd_docs = list(n.reference.collection("ICDcode").limit(1).stream())
                 if icd_docs:
                     icd_id = icd_docs[0].id
                     icd_data = icd_docs[0].to_dict() or {}
+                     # Manually selected ICD codes
                     adjusted_codes = icd_data.get("Adjusted", []) or []
+                    # AI predicted ICD codes
                     predicted_codes = icd_data.get("Predicted", []) or []
             except:
                 pass
 
+              # Convert adjusted codes list into comma-separated string
             adjusted_codes_str = ", ".join(
                 [str(x).strip().upper() for x in adjusted_codes if str(x).strip()]
             )
 
+            # Convert predicted  codes list into comma-separated string
             predicted_codes_str = ", ".join(
                 [str(x).strip().upper() for x in predicted_codes if str(x).strip()]
             )
 
+             # Save note information
             notes_out.append({
                 "note_id": note_id,
                 "note_text": note_text,
@@ -2128,14 +2204,19 @@ def create_app():
                 "predicted_codes_str": predicted_codes_str
             })
         
-
+        # Get display mode
+        # view = normal notes view
+        # info = patient information mode
         mode = request.args.get("mode", "view").strip().lower()
+        
+        # Prevent invalid mode values
         if mode not in ("view", "info"):
             mode = "view"
 
 
         patient_name = pdata.get("FullName", "")
 
+         # Render patient page
         return render_template(
             "view_patient.html",
             pid=pid,
@@ -2149,60 +2230,78 @@ def create_app():
 
     
 
-    #  Predict
+    # Predict ICD Codes API
     @app.post("/predict_icd")
     def predict_icd_route():
         if "user_id" not in session:
             return jsonify({"error": "Unauthorized"}), 401
 
+        # Load model if not already loaded
         ensure_model_loaded(app)
 
+        # Read request JSON data
         data = request.get_json(silent=True) or {}
+        # Get medical note text
         raw_text = (data.get("note_text") or "").strip()
+         # Validate note input
         if not raw_text:
             return jsonify({"status": "error", "message": "Empty note"}), 400
 
+        # Get top-k prediction count
         try:
             k = int(data.get("top_k", 50))
         except Exception:
             k = 50
         k = max(1, min(k, 50))
 
+         # Preprocess medical note text
         clean_text = preprocess_note_text_exact(raw_text)
+         # Validate cleaned text
         if not clean_text:
             return jsonify({"status": "error", "message": "Note became empty after preprocessing"}), 400
 
+        # Tokenize note for PLM-ICD model
         input_ids, attention_mask, num_chunks = tokenize_note_for_plmicd(
             clean_text,
             tokenizer,
             DEVICE
         )
 
+        # Run prediction without gradients
         with torch.no_grad():
             logits = model(input_ids=input_ids, attention_mask=attention_mask)
             probs = torch.sigmoid(logits)[0].detach().cpu()
 
+        # Get top-k highest probabilities
         vals, inds = torch.topk(probs, k=min(k, probs.numel()))
 
+         # Build prediction results
         predictions = []
         for s, i in zip(vals.tolist(), inds.tolist()):
             predictions.append({
+                # Convert label index to ICD code
                 "Code": index2target.get(i, str(i)),
+                  # Prediction confidence score
                 "score": float(s),
             })
 
+        # Return prediction response
         return jsonify({
             "status": "success",
             "predictions": predictions,
+            # Default threshold used in frontend
             "default_threshold": float(BEST_THRESHOLD if BEST_THRESHOLD is not None else 0.5),
             "top_k": k,
+            # Model maximum token length
             "model_max_length": MODEL_MAX_LENGTH,
+             # Chunk size used during tokenization
             "chunk_size": CHUNK_SIZE,
+            # Number of generated chunks
             "num_chunks": num_chunks
         })
     return app
 
-
+# Run Flask Application
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, use_reloader=False, port=5005)
