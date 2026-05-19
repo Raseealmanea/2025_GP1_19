@@ -21,5 +21,5 @@ The OUWN platform is developed using a combination of web and machine learning t
     **Cloud Firestore:** NoSQL document database used for storing application data.
 
 ### 🚀 Launching OuwN App
-The production version of the system is deployed on Render and can be accessed at:
-[https://ouwn.onrender.com](https://dalia1003-ouwn.hf.space)
+The production version of the system is deployed and can be accessed at:
+https://dalia1003-ouwn.hf.space
