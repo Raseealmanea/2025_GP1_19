@@ -21,9 +21,6 @@ The OUWN platform is developed using a combination of web and machine learning t
 - ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)  
   **Firebase:** Used for cloud-based data storage and application data management.
 
-- ![Firestore](https://img.shields.io/badge/Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)  
-  **Cloud Firestore:** NoSQL document database used for storing users, patients, medical notes, and ICD code records.
-
 - ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)  
   **HTML:** Used to structure the web pages.
 
