@@ -40,7 +40,7 @@ To run OUWN locally, open Terminal and navigate to the project folder:
 
 ```bash
 #1
-cd /Applications/MAMP/htdocs/2025_GP1_19_OUWN_Software
+cd /Applications/MAMP/htdocs/G19_OUWN_Software
 #2
 python3 -m venv venv
 #3
