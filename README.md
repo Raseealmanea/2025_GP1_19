@@ -6,20 +6,49 @@ The OUWN platform is developed using a combination of web and machine learning t
 
 ### Technologies
 
-- ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
-  **Node.js:** JavaScript runtime environment that handles server-side operations.
+- ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)  
+  **Python:** Used for backend development, AI model integration, and data processing.
 
-- ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-  **Python:** Used for deep learning models and data processing tasks.
+- ![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)  
+  **Flask:** Python web framework used to build the backend and API routes.
 
-- ![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
-  **Flask:** Lightweight Python web framework used to expose the ML models as REST APIs.
+- ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)  
+  **PyTorch:** Used to load and run the deep learning ICD prediction model.
 
-- ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
-  **Firebase:** Cloud-based tools that help manage authentication and data storage.
-  - ![Firestore](https://img.shields.io/badge/Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)
-    **Cloud Firestore:** NoSQL document database used for storing application data.
+- ![Transformers](https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)  
+  **Transformers:** Used for the biomedical language model component.
+
+- ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)  
+  **Firebase:** Used for cloud-based data storage and application data management.
+
+- ![Firestore](https://img.shields.io/badge/Firestore-FFCA28?style=flat&logo=firebase&logoColor=black)  
+  **Cloud Firestore:** NoSQL document database used for storing users, patients, medical notes, and ICD code records.
+
+- ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)  
+  **HTML:** Used to structure the web pages.
+
+- ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)  
+  **CSS:** Used for styling and responsive interface design.
+
+- ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)  
+  **JavaScript:** Used for interactive frontend features.
 
 ### 🚀 Launching OUWN Website
 The production version of the system is deployed and can be accessed at:
 https://dalia1003-ouwn.hf.space
+
+### 🛠️ Local Setup Instructions
+
+To run OUWN locally, open Terminal and navigate to the project folder:
+
+```bash
+#1
+cd /Applications/MAMP/htdocs/2025_GP1_19_OUWN_Software
+#2
+python3 -m venv venv
+#3
+python3 -m pip install -r requirements.txt
+#4
+python3 -m pip install python-dotenv
+#5
+python3 app.py
