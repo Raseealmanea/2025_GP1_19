@@ -249,7 +249,7 @@ def ensure_model_loaded(app: Flask) -> None:
         raise FileNotFoundError(f"Missing model folder at: {MODEL_PATH}")
 
     print("✅ Loading checkpoint from:", CKPT_PATH)
-    print("✅ best_model.pt sha256:", _file_sha256(CKPT_PATH))
+    #print("✅ best_model.pt sha256:", _file_sha256(CKPT_PATH))
 
     with open(T2I_PATH, "r", encoding="utf-8") as f:
         target2index = json.load(f)
